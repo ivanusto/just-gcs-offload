@@ -1,6 +1,6 @@
 # Just WP GCS Offload
 
-[For English version, see README.md](README.md)
+[For English version, see README.md](README.md) | [WordPress on GCS Implementation Guide](GUIDE.md) | [WordPress on GCS 中文實作指南](GUIDE.zh-TW.md)
 
 這是一個專門為 WordPress 開發的輕量級、無外部依賴（Dependency-free）的 Google Cloud Storage (GCS) 媒體庫異地同步外掛。
 

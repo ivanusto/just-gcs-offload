@@ -1,6 +1,6 @@
 # Just WP GCS Offload
 
-[繁體中文版說明請參見 README.zh-TW.md](README.zh-TW.md)
+[繁體中文版說明請參見 README.zh-TW.md](README.zh-TW.md) | [WordPress on GCS Implementation Guide](GUIDE.md) | [WordPress on GCS 中文實作指南](GUIDE.zh-TW.md)
 
 A lightweight, dependency-free WordPress plugin to offload your Media Library to a Google Cloud Storage (GCS) bucket.
 
