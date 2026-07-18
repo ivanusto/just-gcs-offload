@@ -282,7 +282,7 @@ class Just_WP_GCS_Settings {
 						</label>
 					</div>
 					
-					<button type="button" class="button button-secondary" id="btn_run_bulk_meta" <?php echo $disabled; ?>>
+					<button type="button" class="button button-secondary" id="btn_run_bulk_meta" <?php echo esc_attr( $disabled ); ?>>
 						<?php esc_html_e( 'Run Metadata Sync', 'just-gcs-offload' ); ?>
 					</button>
 				</div>
@@ -307,7 +307,7 @@ class Just_WP_GCS_Settings {
 						</label>
 					</div>
 					
-					<button type="button" class="button button-secondary" id="btn_run_bulk_all" <?php echo $disabled; ?>>
+					<button type="button" class="button button-secondary" id="btn_run_bulk_all" <?php echo esc_attr( $disabled ); ?>>
 						<?php esc_html_e( 'Run Batch Upload', 'just-gcs-offload' ); ?>
 					</button>
 				</div>
@@ -631,12 +631,14 @@ class Just_WP_GCS_Settings {
 		foreach ( $ids as $attachment_id ) {
 			$gcs_info = get_post_meta( $attachment_id, '_wp_gcs_info', true );
 			if ( ! empty( $gcs_info ) && ! $overwrite ) {
+				/* translators: %d: Attachment ID. */
 				$logs[] = sprintf( __( 'ID %d: Already synced, skipped.', 'just-gcs-offload' ), $attachment_id );
 				continue;
 			}
 
 			$main_file = get_post_meta( $attachment_id, '_wp_attached_file', true );
 			if ( empty( $main_file ) ) {
+				/* translators: %d: Attachment ID. */
 				$logs[] = sprintf( __( 'ID %d: No associated file found, skipped.', 'just-gcs-offload' ), $attachment_id );
 				continue;
 			}
@@ -648,11 +650,13 @@ class Just_WP_GCS_Settings {
 					'file'   => $main_file
 				);
 				update_post_meta( $attachment_id, '_wp_gcs_info', $gcs_info );
-				$logs[] = sprintf( __( 'ID %d: Metadata synced successfully (%s).', 'just-gcs-offload' ), $attachment_id, basename( $main_file ) );
+				/* translators: 1: Attachment ID, 2: File name. */
+				$logs[] = sprintf( __( 'ID %1$d: Metadata synced successfully (%2$s).', 'just-gcs-offload' ), $attachment_id, basename( $main_file ) );
 			} elseif ( $type === 'all' ) {
 				$local_main_file = $basedir . '/' . $main_file;
 				if ( ! file_exists( $local_main_file ) ) {
-					$logs[] = sprintf( __( 'ID %d: Local file not found: %s', 'just-gcs-offload' ), $attachment_id, basename( $main_file ) );
+					/* translators: 1: Attachment ID, 2: File name. */
+					$logs[] = sprintf( __( 'ID %1$d: Local file not found: %2$s', 'just-gcs-offload' ), $attachment_id, basename( $main_file ) );
 					continue;
 				}
 
@@ -710,7 +714,8 @@ class Just_WP_GCS_Settings {
 						'file'   => $main_file
 					);
 					update_post_meta( $attachment_id, '_wp_gcs_info', $gcs_info_new );
-					$logs[] = sprintf( __( 'ID %d: Uploaded successfully (%s).', 'just-gcs-offload' ), $attachment_id, basename( $main_file ) );
+					/* translators: 1: Attachment ID, 2: File name. */
+					$logs[] = sprintf( __( 'ID %1$d: Uploaded successfully (%2$s).', 'just-gcs-offload' ), $attachment_id, basename( $main_file ) );
 
 					if ( $delete_local ) {
 						foreach ( $uploaded_successfully as $file_info ) {
@@ -718,7 +723,8 @@ class Just_WP_GCS_Settings {
 						}
 					}
 				} else {
-					$logs[] = sprintf( __( 'ID %d: Failed to upload (%s). Errors: %s', 'just-gcs-offload' ), $attachment_id, basename( $main_file ), implode( ', ', $failed_uploads ) );
+					/* translators: 1: Attachment ID, 2: File name, 3: Error messages. */
+					$logs[] = sprintf( __( 'ID %1$d: Failed to upload (%2$s). Errors: %3$s', 'just-gcs-offload' ), $attachment_id, basename( $main_file ), implode( ', ', $failed_uploads ) );
 				}
 			}
 		}
