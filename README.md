@@ -1,10 +1,10 @@
-# Just WP GCS Offload
+# Just GCS Offload
 
 [繁體中文版說明請參見 README.zh-TW.md](README.zh-TW.md) | [WordPress on GCS Implementation Guide](GUIDE.md) | [WordPress on GCS 中文實作指南](GUIDE.zh-TW.md)
 
 A lightweight, dependency-free WordPress plugin to offload your Media Library to a Google Cloud Storage (GCS) bucket.
 
-Unlike other bloated cloud storage plugins, **Just WP GCS Offload** is designed to be as small and efficient as possible. It implements a lightweight GCS REST client in pure PHP using cURL and native OpenSSL JWT signing for Service Account authentication, completely bypassing the massive official Google Cloud SDK.
+Unlike other bloated cloud storage plugins, **Just GCS Offload** is designed to be as small and efficient as possible. It implements a lightweight GCS REST client in pure PHP using cURL and native OpenSSL JWT signing for Service Account authentication, completely bypassing the massive official Google Cloud SDK.
 
 ## Features
 
@@ -13,7 +13,7 @@ Unlike other bloated cloud storage plugins, **Just WP GCS Offload** is designed 
 * **Automatic Media Offloading**: Automatically uploads new images and all generated sub-sizes (thumbnails) to GCS during upload.
 * **URL & Srcset Rewriting**: Seamlessly rewrites image URLs and responsive `srcset` paths to point to GCS or a custom CDN domain.
 * **Optional Local Cleanup**: Optionally deletes the local server copy of uploaded files to save disk space.
-* **连动 Deletion**: Automatically deletes original and resized files from GCS when an attachment is permanently deleted from the WordPress admin.
+* **Automatic Deletion**: Automatically deletes original and resized files from GCS when an attachment is permanently deleted from the WordPress admin.
 * **WP-CLI Integration**: Provides powerful command-line tools to migrate existing media library items and sync database metadata.
 * **Connection Test**: A simple button in settings to test read/write/delete permissions.
 
@@ -25,7 +25,7 @@ Unlike other bloated cloud storage plugins, **Just WP GCS Offload** is designed 
 
 ## Installation
 
-1. Download the latest `just-wp-gcs.zip` from the [Releases](https://github.com/ivanusto/just-wp-gcs/releases) page.
+1. Download the latest `just-gcs-offload.zip` from the [Releases](https://github.com/ivanusto/just-wp-gcs/releases) page.
 2. In your WordPress admin, go to **Plugins -> Add New -> Upload Plugin**, select the zip file, and click **Install Now**.
 3. Activate the plugin.
 

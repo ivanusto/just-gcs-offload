@@ -1,10 +1,10 @@
-# Just WP GCS Offload
+# Just GCS Offload
 
 [For English version, see README.md](README.md) | [WordPress on GCS Implementation Guide](GUIDE.md) | [WordPress on GCS 中文實作指南](GUIDE.zh-TW.md)
 
 這是一個專門為 WordPress 開發的輕量級、無外部依賴（Dependency-free）的 Google Cloud Storage (GCS) 媒體庫異地同步外掛。
 
-相較於其他臃腫的雲端儲存外掛，**Just WP GCS Offload** 旨在保持極輕量與高效。我們完全繞過了體積龐大的官方 Google Cloud SDK，而是直接使用 PHP 原生的 cURL 以及 OpenSSL 的 JWT 簽章演算法來處理 Service Account 憑證驗證與 REST API 檔案上傳。
+相較於其他臃腫的雲端儲存外掛，**Just GCS Offload** 旨在保持極輕量與高效。我們完全繞過了體積龐大的官方 Google Cloud SDK，而是直接使用 PHP 原生的 cURL 以及 OpenSSL 的 JWT 簽章演算法來處理 Service Account 憑證驗證與 REST API 檔案上傳。
 
 ## 功能特色
 
@@ -25,7 +25,7 @@
 
 ## 安裝步驟
 
-1. 至本專案的 [Releases](https://github.com/ivanusto/just-wp-gcs/releases) 頁面下載最新版的 `just-wp-gcs.zip`。
+1. 至本專案的 [Releases](https://github.com/ivanusto/just-wp-gcs/releases) 頁面下載最新版的 `just-gcs-offload.zip`。
 2. 登入您的 WordPress 後台，前往 **「外掛」->「安裝外掛」->「上傳外掛」**，選擇下載的 ZIP 檔案並點擊 **「立即安裝」**。
 3. 啟用外掛。
 

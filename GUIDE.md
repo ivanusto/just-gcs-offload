@@ -1,8 +1,8 @@
-# WordPress on GCS Implementation Guide (with just-wp-gcs)
+# WordPress on GCS Implementation Guide (with just-gcs-offload)
 
 [繁體中文版說明請參見 GUIDE.zh-TW.md](GUIDE.zh-TW.md)
 
-This guide provides a comprehensive path to migrating your WordPress Media Library to Google Cloud Storage (GCS) using the `just-wp-gcs` plugin.
+This guide provides a comprehensive path to migrating your WordPress Media Library to Google Cloud Storage (GCS) using the `just-gcs-offload` plugin.
 
 The primary goal of this project is to provide a lightweight, high-performance solution that avoids PHP timeouts and memory constraints when dealing with massive media libraries (e.g., tens of GiBs / 40,000+ files).
 
@@ -76,5 +76,5 @@ Traditional media offload plugins often run into Redis object cache conflicts an
 
 Our recommended methodology:
 1. Delegate **initial/bulk file synchronization** to the high-performance CLI utility `gcloud rsync`.
-2. Let **`just-wp-gcs`** handle dynamic new uploads and real-time database URL rewrites.
+2. Let **`just-gcs-offload`** handle dynamic new uploads and real-time database URL rewrites.
 This hybrid approach keeps your WordPress site light, fast, and completely error-free.

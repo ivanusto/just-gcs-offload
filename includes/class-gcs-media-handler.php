@@ -1,6 +1,6 @@
 <?php
 /**
- * Just WP GCS Media Handler
+ * Just GCS Offload Media Handler
  * Hooks into WordPress media upload, URL rewrite, and deletion processes.
  */
 
@@ -112,7 +112,9 @@ class Just_WP_GCS_Media_Handler {
 					'file'  => $file_info['local_path'],
 					'error' => $upload->get_error_message()
 				);
-				error_log( sprintf( 'Just WP GCS Offload: Upload failed for %s. Error: %s', $file_info['local_path'], $upload->get_error_message() ) );
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log( sprintf( 'Just GCS Offload: Upload failed for %s. Error: %s', $file_info['local_path'], $upload->get_error_message() ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Only logs when WP_DEBUG is enabled.
+				}
 			} else {
 				$uploaded_successfully[] = $file_info;
 			}
@@ -132,7 +134,7 @@ class Just_WP_GCS_Media_Handler {
 			$delete_local = get_option( 'just_wp_gcs_delete_local', '0' );
 			if ( $delete_local === '1' ) {
 				foreach ( $uploaded_successfully as $file_info ) {
-					@unlink( $file_info['local_path'] );
+					wp_delete_file( $file_info['local_path'] );
 				}
 			}
 		}

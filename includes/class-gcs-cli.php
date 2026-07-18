@@ -1,8 +1,12 @@
 <?php
 /**
- * Just WP GCS WP-CLI Command Integration
+ * Just GCS Offload WP-CLI Command Integration
  * Batch syncs existing media library files and metadata to GCS.
  */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly.
+}
 
 if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
 	return;
@@ -221,7 +225,7 @@ class Just_WP_GCS_CLI {
 
 				if ( $delete_local ) {
 					foreach ( $uploaded_successfully as $file_info ) {
-						@unlink( $file_info['local_path'] );
+						wp_delete_file( $file_info['local_path'] );
 					}
 				}
 			} else {

@@ -1,6 +1,6 @@
 <?php
 /**
- * Just WP GCS Settings Page
+ * Just GCS Offload Settings Page
  * Sets up admin menus, registers options, and handles connection testing.
  */
 
@@ -32,10 +32,10 @@ class Just_WP_GCS_Settings {
 	 */
 	public function add_settings_page() {
 		add_options_page(
-			__( 'GCS Offload Settings', 'just-wp-gcs' ),
-			__( 'GCS Offload', 'just-wp-gcs' ),
+			__( 'GCS Offload Settings', 'just-gcs-offload' ),
+			__( 'GCS Offload', 'just-gcs-offload' ),
 			'manage_options',
-			'just-wp-gcs',
+			'just-gcs-offload',
 			array( $this, 'render_settings_page' )
 		);
 	}
@@ -59,72 +59,72 @@ class Just_WP_GCS_Settings {
 		// Credentials Section
 		add_settings_section(
 			'just_wp_gcs_section_credentials',
-			__( 'Google Cloud Storage Credentials', 'just-wp-gcs' ),
+			__( 'Google Cloud Storage Credentials', 'just-gcs-offload' ),
 			null,
-			'just-wp-gcs'
+			'just-gcs-offload'
 		);
 
 		add_settings_field(
 			'just_wp_gcs_service_account',
-			__( 'Service Account JSON Key', 'just-wp-gcs' ),
+			__( 'Service Account JSON Key', 'just-gcs-offload' ),
 			array( $this, 'render_service_account_field' ),
-			'just-wp-gcs',
+			'just-gcs-offload',
 			'just_wp_gcs_section_credentials'
 		);
 
 		add_settings_field(
 			'just_wp_gcs_bucket',
-			__( 'GCS Bucket Name', 'just-wp-gcs' ),
+			__( 'GCS Bucket Name', 'just-gcs-offload' ),
 			array( $this, 'render_bucket_field' ),
-			'just-wp-gcs',
+			'just-gcs-offload',
 			'just_wp_gcs_section_credentials'
 		);
 
 		// General Behavior Section
 		add_settings_section(
 			'just_wp_gcs_section_behavior',
-			__( 'Plugin Behavior & Offload Settings', 'just-wp-gcs' ),
+			__( 'Plugin Behavior & Offload Settings', 'just-gcs-offload' ),
 			null,
-			'just-wp-gcs'
+			'just-gcs-offload'
 		);
 
 		add_settings_field(
 			'just_wp_gcs_prefix',
-			__( 'Folder Path Prefix', 'just-wp-gcs' ),
+			__( 'Folder Path Prefix', 'just-gcs-offload' ),
 			array( $this, 'render_prefix_field' ),
-			'just-wp-gcs',
+			'just-gcs-offload',
 			'just_wp_gcs_section_behavior'
 		);
 
 		add_settings_field(
 			'just_wp_gcs_custom_domain',
-			__( 'Custom Domain / CDN URL', 'just-wp-gcs' ),
+			__( 'Custom Domain / CDN URL', 'just-gcs-offload' ),
 			array( $this, 'render_custom_domain_field' ),
-			'just-wp-gcs',
+			'just-gcs-offload',
 			'just_wp_gcs_section_behavior'
 		);
 
 		add_settings_field(
 			'just_wp_gcs_cache_control',
-			__( 'Cache-Control Header', 'just-wp-gcs' ),
+			__( 'Cache-Control Header', 'just-gcs-offload' ),
 			array( $this, 'render_cache_control_field' ),
-			'just-wp-gcs',
+			'just-gcs-offload',
 			'just_wp_gcs_section_behavior'
 		);
 
 		add_settings_field(
 			'just_wp_gcs_set_public_acl',
-			__( 'Set Public ACL', 'just-wp-gcs' ),
+			__( 'Set Public ACL', 'just-gcs-offload' ),
 			array( $this, 'render_public_acl_field' ),
-			'just-wp-gcs',
+			'just-gcs-offload',
 			'just_wp_gcs_section_behavior'
 		);
 
 		add_settings_field(
 			'just_wp_gcs_delete_local',
-			__( 'Delete Local Files', 'just-wp-gcs' ),
+			__( 'Delete Local Files', 'just-gcs-offload' ),
 			array( $this, 'render_delete_local_field' ),
-			'just-wp-gcs',
+			'just-gcs-offload',
 			'just_wp_gcs_section_behavior'
 		);
 	}
@@ -144,7 +144,7 @@ class Just_WP_GCS_Settings {
 			add_settings_error(
 				'just_wp_gcs_service_account',
 				'invalid_json',
-				__( 'The Service Account Key must be valid JSON.', 'just-wp-gcs' )
+				__( 'The Service Account Key must be valid JSON.', 'just-gcs-offload' )
 			);
 			return get_option( 'just_wp_gcs_service_account', '' );
 		}
@@ -168,7 +168,7 @@ class Just_WP_GCS_Settings {
   "project_id": "your-project-id",
   ...
 }'><?php echo esc_textarea( $value ); ?></textarea>
-		<p class="description"><?php _e( 'Paste the content of your Google Cloud Service Account private key JSON file.', 'just-wp-gcs' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Paste the content of your Google Cloud Service Account private key JSON file.', 'just-gcs-offload' ); ?></p>
 		<?php
 	}
 
@@ -176,7 +176,7 @@ class Just_WP_GCS_Settings {
 		$value = get_option( 'just_wp_gcs_bucket', '' );
 		?>
 		<input type="text" name="just_wp_gcs_bucket" id="just_wp_gcs_bucket" value="<?php echo esc_attr( $value ); ?>" class="regular-text" />
-		<p class="description"><?php _e( 'Enter the GCS bucket name (e.g. <code>my-wordpress-bucket</code>).', 'just-wp-gcs' ); ?></p>
+		<p class="description"><?php echo wp_kses( __( 'Enter the GCS bucket name (e.g. <code>my-wordpress-bucket</code>).', 'just-gcs-offload' ), array( 'code' => array() ) ); ?></p>
 		<?php
 	}
 
@@ -184,7 +184,7 @@ class Just_WP_GCS_Settings {
 		$value = get_option( 'just_wp_gcs_prefix', '' );
 		?>
 		<input type="text" name="just_wp_gcs_prefix" id="just_wp_gcs_prefix" value="<?php echo esc_attr( $value ); ?>" class="regular-text" placeholder="e.g. wp-content/uploads" />
-		<p class="description"><?php _e( 'Optional folder path prefix inside the bucket. Do not include leading or trailing slashes.', 'just-wp-gcs' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Optional folder path prefix inside the bucket. Do not include leading or trailing slashes.', 'just-gcs-offload' ); ?></p>
 		<?php
 	}
 
@@ -192,7 +192,7 @@ class Just_WP_GCS_Settings {
 		$value = get_option( 'just_wp_gcs_custom_domain', '' );
 		?>
 		<input type="url" name="just_wp_gcs_custom_domain" id="just_wp_gcs_custom_domain" value="<?php echo esc_url( $value ); ?>" class="regular-text" placeholder="https://cdn.example.com" />
-		<p class="description"><?php _e( 'Optional custom domain or CDN URL pointing to your GCS bucket. Leave blank to use the default GCS URL: <code>https://storage.googleapis.com/{bucket}</code>', 'just-wp-gcs' ); ?></p>
+		<p class="description"><?php echo wp_kses( __( 'Optional custom domain or CDN URL pointing to your GCS bucket. Leave blank to use the default GCS URL: <code>https://storage.googleapis.com/{bucket}</code>', 'just-gcs-offload' ), array( 'code' => array() ) ); ?></p>
 		<?php
 	}
 
@@ -200,7 +200,7 @@ class Just_WP_GCS_Settings {
 		$value = get_option( 'just_wp_gcs_cache_control', 'public, max-age=31536000' );
 		?>
 		<input type="text" name="just_wp_gcs_cache_control" id="just_wp_gcs_cache_control" value="<?php echo esc_attr( $value ); ?>" class="regular-text" />
-		<p class="description"><?php _e( 'The <code>Cache-Control</code> header applied to uploaded objects (e.g., <code>public, max-age=31536000</code>).', 'just-wp-gcs' ); ?></p>
+		<p class="description"><?php echo wp_kses( __( 'The <code>Cache-Control</code> header applied to uploaded objects (e.g., <code>public, max-age=31536000</code>).', 'just-gcs-offload' ), array( 'code' => array() ) ); ?></p>
 		<?php
 	}
 
@@ -209,9 +209,9 @@ class Just_WP_GCS_Settings {
 		?>
 		<label for="just_wp_gcs_set_public_acl">
 			<input type="checkbox" name="just_wp_gcs_set_public_acl" id="just_wp_gcs_set_public_acl" value="1" <?php checked( $value, '1' ); ?> />
-			<?php _e( 'Set uploaded objects ACL to public-read', 'just-wp-gcs' ); ?>
+			<?php esc_html_e( 'Set uploaded objects ACL to public-read', 'just-gcs-offload' ); ?>
 		</label>
-		<p class="description"><?php _e( 'Enable this if your bucket uses Fine-grained access control. Disable this if your bucket has Uniform Bucket-Level Access enabled (in which case you must configure IAM to grant public access).', 'just-wp-gcs' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Enable this if your bucket uses Fine-grained access control. Disable this if your bucket has Uniform Bucket-Level Access enabled (in which case you must configure IAM to grant public access).', 'just-gcs-offload' ); ?></p>
 		<?php
 	}
 
@@ -220,9 +220,9 @@ class Just_WP_GCS_Settings {
 		?>
 		<label for="just_wp_gcs_delete_local">
 			<input type="checkbox" name="just_wp_gcs_delete_local" id="just_wp_gcs_delete_local" value="1" <?php checked( $value, '1' ); ?> />
-			<?php _e( 'Delete local files after successful GCS upload', 'just-wp-gcs' ); ?>
+			<?php esc_html_e( 'Delete local files after successful GCS upload', 'just-gcs-offload' ); ?>
 		</label>
-		<p class="description" style="color: #d63638; font-weight: 500;"><?php _e( 'Warning: If enabled, WordPress will delete the server local copy. Built-in image editing (crop/rotate) in WP Admin requires local files and might fail.', 'just-wp-gcs' ); ?></p>
+		<p class="description" style="color: #d63638; font-weight: 500;"><?php esc_html_e( 'Warning: If enabled, WordPress will delete the server local copy. Built-in image editing (crop/rotate) in WP Admin requires local files and might fail.', 'just-gcs-offload' ); ?></p>
 		<?php
 	}
 
@@ -240,15 +240,15 @@ class Just_WP_GCS_Settings {
 			<form action="options.php" method="post">
 				<?php
 				settings_fields( 'just_wp_gcs_options' );
-				do_settings_sections( 'just-wp-gcs' );
-				submit_button( __( 'Save Settings', 'just-wp-gcs' ) );
+				do_settings_sections( 'just-gcs-offload' );
+				submit_button( __( 'Save Settings', 'just-gcs-offload' ) );
 				?>
 			</form>
 
 			<hr />
 
-			<h2><?php _e( 'Test Connection', 'just-wp-gcs' ); ?></h2>
-			<p><?php _e( 'Click the button below to test GCS bucket authentication and write permissions using the currently saved settings.', 'just-wp-gcs' ); ?></p>
+			<h2><?php esc_html_e( 'Test Connection', 'just-gcs-offload' ); ?></h2>
+			<p><?php esc_html_e( 'Click the button below to test GCS bucket authentication and write permissions using the currently saved settings.', 'just-gcs-offload' ); ?></p>
 			
 			<form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
 				<input type="hidden" name="action" value="just_wp_gcs_test" />
@@ -257,7 +257,7 @@ class Just_WP_GCS_Settings {
 				$bucket = get_option( 'just_wp_gcs_bucket', '' );
 				$sa     = get_option( 'just_wp_gcs_service_account', '' );
 				$disabled = ( empty( $bucket ) || empty( $sa ) ) ? 'disabled' : '';
-				submit_button( __( 'Run Connection Test', 'just-wp-gcs' ), 'secondary', 'run_test', true, array( $disabled => $disabled ) );
+				submit_button( __( 'Run Connection Test', 'just-gcs-offload' ), 'secondary', 'run_test', true, array( $disabled => $disabled ) );
 				?>
 			</form>
 		</div>
@@ -273,7 +273,7 @@ class Just_WP_GCS_Settings {
 		}
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( __( 'Unauthorized access.', 'just-wp-gcs' ) );
+			wp_die( esc_html__( 'Unauthorized access.', 'just-gcs-offload' ) );
 		}
 
 		check_admin_referer( 'just_wp_gcs_test_action', 'just_wp_gcs_test_nonce' );
@@ -285,13 +285,13 @@ class Just_WP_GCS_Settings {
 
 		if ( is_wp_error( $result ) ) {
 			$url = add_query_arg( array(
-				'page'            => 'just-wp-gcs',
+				'page'            => 'just-gcs-offload',
 				'gcs_test_status' => 'failed',
 				'gcs_error_msg'   => urlencode( $result->get_error_message() )
 			), admin_url( 'options-general.php' ) );
 		} else {
 			$url = add_query_arg( array(
-				'page'            => 'just-wp-gcs',
+				'page'            => 'just-gcs-offload',
 				'gcs_test_status' => 'success'
 			), admin_url( 'options-general.php' ) );
 		}
@@ -304,7 +304,8 @@ class Just_WP_GCS_Settings {
 	 * Display admin notices on success or failure of connection test.
 	 */
 	public function display_notices() {
-		if ( ! isset( $_GET['page'] ) || $_GET['page'] !== 'just-wp-gcs' ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only display of the connection test result; no state is changed.
+		if ( ! isset( $_GET['page'] ) || $_GET['page'] !== 'just-gcs-offload' ) {
 			return;
 		}
 
@@ -312,18 +313,19 @@ class Just_WP_GCS_Settings {
 			if ( $_GET['gcs_test_status'] === 'success' ) {
 				?>
 				<div class="notice notice-success is-dismissible">
-					<p><strong><?php _e( 'GCS Connection Test Succeeded!', 'just-wp-gcs' ); ?></strong> <?php _e( 'The plugin successfully authenticated with Google, wrote a test file to the bucket, and deleted it.', 'just-wp-gcs' ); ?></p>
+					<p><strong><?php esc_html_e( 'GCS Connection Test Succeeded!', 'just-gcs-offload' ); ?></strong> <?php esc_html_e( 'The plugin successfully authenticated with Google, wrote a test file to the bucket, and deleted it.', 'just-gcs-offload' ); ?></p>
 				</div>
 				<?php
 			} elseif ( $_GET['gcs_test_status'] === 'failed' ) {
-				$msg = isset( $_GET['gcs_error_msg'] ) ? sanitize_text_field( urldecode( $_GET['gcs_error_msg'] ) ) : __( 'Unknown error.', 'just-wp-gcs' );
+				$msg = isset( $_GET['gcs_error_msg'] ) ? sanitize_text_field( wp_unslash( $_GET['gcs_error_msg'] ) ) : __( 'Unknown error.', 'just-gcs-offload' );
 				?>
 				<div class="notice notice-error is-dismissible">
-					<p><strong><?php _e( 'GCS Connection Test Failed!', 'just-wp-gcs' ); ?></strong></p>
+					<p><strong><?php esc_html_e( 'GCS Connection Test Failed!', 'just-gcs-offload' ); ?></strong></p>
 					<p><?php echo esc_html( $msg ); ?></p>
 				</div>
 				<?php
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 	}
 }

@@ -1,8 +1,8 @@
-# WordPress on GCS 實作指南 (搭配 just-wp-gcs)
+# WordPress on GCS 實作指南 (搭配 just-gcs-offload)
 
 [For English version, see GUIDE.md](GUIDE.md)
 
-本指南提供使用 `just-wp-gcs` 外掛將 WordPress 媒體庫無縫遷移至 Google Cloud Storage (GCS) 的完整環境配置指南。
+本指南提供使用 `just-gcs-offload` 外掛將 WordPress 媒體庫無縫遷移至 Google Cloud Storage (GCS) 的完整環境配置指南。
 
 本專案的核心目標在於提供一個極輕量、高效能的解決方案，避免在處理海量媒體庫（如數十 GiB 空間 / 40,000+ 個檔案）時，因背景掃描而產生 PHP 超時或記憶體溢出的問題。
 
@@ -76,5 +76,5 @@ gcloud storage rsync wp-content/uploads/ gs://[BUCKET_NAME]/[PREFIX] --recursive
 
 我們強烈建議以下分流做法：
 1. **歷史檔案與大批搬移**：交給高效率的命令列工具 `gcloud rsync` 處理。
-2. **動態上傳與網址改寫**：交給極輕量的 **`just-wp-gcs`** 即時處理。
+2. **動態上傳與網址改寫**：交給極輕量的 **`just-gcs-offload`** 即時處理。
 這套實作方法能確保您的 WordPress 主機保持最輕量、最穩定的運作狀態。

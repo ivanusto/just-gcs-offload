@@ -1,6 +1,6 @@
 <?php
 /**
- * Just WP GCS Client
+ * Just GCS Offload Client
  * Handles OAuth2 service account token requests and Google Cloud Storage API calls.
  */
 
@@ -23,12 +23,12 @@ class Just_WP_GCS_Client {
 
 		$sa_json = get_option( 'just_wp_gcs_service_account' );
 		if ( empty( $sa_json ) ) {
-			return new WP_Error( 'no_credentials', __( 'No Google Service Account JSON provided.', 'just-wp-gcs' ) );
+			return new WP_Error( 'no_credentials', __( 'No Google Service Account JSON provided.', 'just-gcs-offload' ) );
 		}
 
 		$credentials = json_decode( $sa_json, true );
 		if ( ! is_array( $credentials ) || empty( $credentials['private_key'] ) || empty( $credentials['client_email'] ) ) {
-			return new WP_Error( 'invalid_credentials', __( 'Invalid Service Account JSON format.', 'just-wp-gcs' ) );
+			return new WP_Error( 'invalid_credentials', __( 'Invalid Service Account JSON format.', 'just-gcs-offload' ) );
 		}
 
 		$client_email = $credentials['client_email'];
@@ -55,7 +55,7 @@ class Just_WP_GCS_Client {
 
 		// Sign JWT using OpenSSL RS256
 		if ( ! openssl_sign( $signature_input, $signature, $private_key, 'SHA256' ) ) {
-			return new WP_Error( 'signing_failed', __( 'Failed to sign JWT assertion using OpenSSL.', 'just-wp-gcs' ) );
+			return new WP_Error( 'signing_failed', __( 'Failed to sign JWT assertion using OpenSSL.', 'just-gcs-offload' ) );
 		}
 
 		$jwt = $signature_input . '.' . $this->base64url_encode( $signature );
@@ -76,7 +76,8 @@ class Just_WP_GCS_Client {
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 		if ( empty( $body['access_token'] ) ) {
 			$error_desc = isset( $body['error_description'] ) ? $body['error_description'] : ( isset( $body['error'] ) ? $body['error'] : 'Unknown OAuth error' );
-			return new WP_Error( 'oauth_error', sprintf( __( 'OAuth token exchange failed: %s', 'just-wp-gcs' ), $error_desc ) );
+			/* translators: %s: Error description returned by the Google OAuth server. */
+			return new WP_Error( 'oauth_error', sprintf( __( 'OAuth token exchange failed: %s', 'just-gcs-offload' ), $error_desc ) );
 		}
 
 		$token      = $body['access_token'];
@@ -98,7 +99,8 @@ class Just_WP_GCS_Client {
 	 */
 	public function upload_file( $local_path, $gcs_path, $content_type = '' ) {
 		if ( ! file_exists( $local_path ) ) {
-			return new WP_Error( 'file_not_found', sprintf( __( 'Local file not found: %s', 'just-wp-gcs' ), $local_path ) );
+			/* translators: %s: Absolute path of the local file. */
+			return new WP_Error( 'file_not_found', sprintf( __( 'Local file not found: %s', 'just-gcs-offload' ), $local_path ) );
 		}
 
 		$token = $this->get_oauth_token();
@@ -108,7 +110,7 @@ class Just_WP_GCS_Client {
 
 		$bucket = get_option( 'just_wp_gcs_bucket' );
 		if ( empty( $bucket ) ) {
-			return new WP_Error( 'no_bucket', __( 'GCS bucket name is not configured.', 'just-wp-gcs' ) );
+			return new WP_Error( 'no_bucket', __( 'GCS bucket name is not configured.', 'just-gcs-offload' ) );
 		}
 
 		if ( empty( $content_type ) ) {
@@ -122,7 +124,8 @@ class Just_WP_GCS_Client {
 
 		$file_content = file_get_contents( $local_path );
 		if ( $file_content === false ) {
-			return new WP_Error( 'read_error', sprintf( __( 'Failed to read local file: %s', 'just-wp-gcs' ), $local_path ) );
+			/* translators: %s: Absolute path of the local file. */
+			return new WP_Error( 'read_error', sprintf( __( 'Failed to read local file: %s', 'just-gcs-offload' ), $local_path ) );
 		}
 
 		$set_public_acl = get_option( 'just_wp_gcs_set_public_acl', '0' );
@@ -179,7 +182,8 @@ class Just_WP_GCS_Client {
 		$code = wp_remote_retrieve_response_code( $response );
 		if ( $code !== 200 ) {
 			$res_body = wp_remote_retrieve_body( $response );
-			return new WP_Error( 'upload_failed', sprintf( __( 'Upload to GCS failed with status %d. Response: %s', 'just-wp-gcs' ), $code, $res_body ) );
+			/* translators: 1: HTTP status code, 2: Response body returned by GCS. */
+			return new WP_Error( 'upload_failed', sprintf( __( 'Upload to GCS failed with status %1$d. Response: %2$s', 'just-gcs-offload' ), $code, $res_body ) );
 		}
 
 		return true;
@@ -199,7 +203,7 @@ class Just_WP_GCS_Client {
 
 		$bucket = get_option( 'just_wp_gcs_bucket' );
 		if ( empty( $bucket ) ) {
-			return new WP_Error( 'no_bucket', __( 'GCS bucket name is not configured.', 'just-wp-gcs' ) );
+			return new WP_Error( 'no_bucket', __( 'GCS bucket name is not configured.', 'just-gcs-offload' ) );
 		}
 
 		$url = sprintf(
@@ -226,7 +230,8 @@ class Just_WP_GCS_Client {
 		// 200/204 are success; 404 is also fine (already deleted)
 		if ( $code !== 204 && $code !== 200 && $code !== 404 ) {
 			$body = wp_remote_retrieve_body( $response );
-			return new WP_Error( 'delete_failed', sprintf( __( 'Failed to delete object from GCS. Response code: %d. Response: %s', 'just-wp-gcs' ), $code, $body ) );
+			/* translators: 1: HTTP status code, 2: Response body returned by GCS. */
+			return new WP_Error( 'delete_failed', sprintf( __( 'Failed to delete object from GCS. Response code: %1$d. Response: %2$s', 'just-gcs-offload' ), $code, $body ) );
 		}
 
 		return true;
@@ -245,21 +250,21 @@ class Just_WP_GCS_Client {
 
 		$bucket = get_option( 'just_wp_gcs_bucket' );
 		if ( empty( $bucket ) ) {
-			return new WP_Error( 'no_bucket', __( 'GCS bucket name is not configured.', 'just-wp-gcs' ) );
+			return new WP_Error( 'no_bucket', __( 'GCS bucket name is not configured.', 'just-gcs-offload' ) );
 		}
 
 		// Write a temporary test file
 		$test_content = 'Just WP GCS Offload Connection Test: ' . current_time( 'mysql' );
 		$temp_file    = wp_tempnam( 'gcs_test' );
 		if ( ! $temp_file ) {
-			return new WP_Error( 'temp_file_failed', __( 'Failed to create local temp file.', 'just-wp-gcs' ) );
+			return new WP_Error( 'temp_file_failed', __( 'Failed to create local temp file.', 'just-gcs-offload' ) );
 		}
 
 		file_put_contents( $temp_file, $test_content );
 
-		$gcs_path = 'just-wp-gcs-test-connection.txt';
+		$gcs_path = 'just-gcs-offload-test-connection.txt';
 		$upload   = $this->upload_file( $temp_file, $gcs_path, 'text/plain' );
-		@unlink( $temp_file );
+		wp_delete_file( $temp_file );
 
 		if ( is_wp_error( $upload ) ) {
 			return $upload;
@@ -268,7 +273,8 @@ class Just_WP_GCS_Client {
 		// Delete the test file immediately
 		$delete = $this->delete_file( $gcs_path );
 		if ( is_wp_error( $delete ) ) {
-			return new WP_Error( 'delete_failed', sprintf( __( 'Upload succeeded, but GCS deletion failed: %s', 'just-wp-gcs' ), $delete->get_error_message() ) );
+			/* translators: %s: Error message describing why the GCS deletion failed. */
+			return new WP_Error( 'delete_failed', sprintf( __( 'Upload succeeded, but GCS deletion failed: %s', 'just-gcs-offload' ), $delete->get_error_message() ) );
 		}
 
 		return true;
