@@ -4,6 +4,9 @@
 
 這是一個專門為 WordPress 開發的輕量級、無外部依賴（Dependency-free）的 Google Cloud Storage (GCS) 媒體庫異地同步外掛。
 
+> [!NOTE]
+> 需要 Amazon S3 或 S3 相容儲存（R2、B2、Spaces、MinIO）支援嗎？請參考我們的姊妹專案：[Just S3 Offload](https://github.com/ivanusto/just-s3-offload)。
+
 相較於其他臃腫的雲端儲存外掛，**Just GCS Offload** 旨在保持極輕量與高效。我們完全繞過了體積龐大的官方 Google Cloud SDK，而是直接使用 PHP 原生的 cURL 以及 OpenSSL 的 JWT 簽章演算法來處理 Service Account 憑證驗證與 REST API 檔案上傳。
 
 ## 功能特色

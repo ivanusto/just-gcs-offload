@@ -4,6 +4,9 @@
 
 A lightweight, dependency-free WordPress plugin to offload your Media Library to a Google Cloud Storage (GCS) bucket.
 
+> [!NOTE]
+> Looking for Amazon S3 or S3-compatible (R2, B2, Spaces, MinIO) storage support instead? Check out our sister project: [Just S3 Offload](https://github.com/ivanusto/just-s3-offload).
+
 Unlike other bloated cloud storage plugins, **Just GCS Offload** is designed to be as small and efficient as possible. It implements a lightweight GCS REST client in pure PHP using cURL and native OpenSSL JWT signing for Service Account authentication, completely bypassing the massive official Google Cloud SDK.
 
 ## Features

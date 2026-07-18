@@ -4,6 +4,9 @@
 
 This guide provides a comprehensive path to migrating your WordPress Media Library to Google Cloud Storage (GCS) using the `just-gcs-offload` plugin.
 
+> [!NOTE]
+> Looking for Amazon S3 or S3-compatible (R2, B2, Spaces, MinIO) storage support instead? Check out our sister project: [Just S3 Offload](https://github.com/ivanusto/just-s3-offload).
+
 The primary goal of this project is to provide a lightweight, high-performance solution that avoids PHP timeouts and memory constraints when dealing with massive media libraries (e.g., tens of GiBs / 40,000+ files).
 
 ---

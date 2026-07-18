@@ -4,6 +4,9 @@
 
 本指南提供使用 `just-gcs-offload` 外掛將 WordPress 媒體庫無縫遷移至 Google Cloud Storage (GCS) 的完整環境配置指南。
 
+> [!NOTE]
+> 需要 Amazon S3 或 S3 相容儲存（R2、B2、Spaces、MinIO）支援嗎？請參考我們的姊妹專案：[Just S3 Offload](https://github.com/ivanusto/just-s3-offload)。
+
 本專案的核心目標在於提供一個極輕量、高效能的解決方案，避免在處理海量媒體庫（如數十 GiB 空間 / 40,000+ 個檔案）時，因背景掃描而產生 PHP 超時或記憶體溢出的問題。
 
 ---
