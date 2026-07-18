@@ -25,6 +25,9 @@ class Just_WP_GCS_Settings {
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_init', array( $this, 'handle_test_connection' ) );
 		add_action( 'admin_notices', array( $this, 'display_notices' ) );
+
+		add_action( 'wp_ajax_just_wp_gcs_get_attachment_ids', array( $this, 'ajax_get_attachment_ids' ) );
+		add_action( 'wp_ajax_just_wp_gcs_process_batch', array( $this, 'ajax_process_batch' ) );
 	}
 
 	/**
@@ -250,7 +253,7 @@ class Just_WP_GCS_Settings {
 			<h2><?php esc_html_e( 'Test Connection', 'just-gcs-offload' ); ?></h2>
 			<p><?php esc_html_e( 'Click the button below to test GCS bucket authentication and write permissions using the currently saved settings.', 'just-gcs-offload' ); ?></p>
 			
-			<form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
+			<form action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post" style="margin-bottom: 20px;">
 				<input type="hidden" name="action" value="just_wp_gcs_test" />
 				<?php wp_nonce_field( 'just_wp_gcs_test_action', 'just_wp_gcs_test_nonce' ); ?>
 				<?php
@@ -260,7 +263,251 @@ class Just_WP_GCS_Settings {
 				submit_button( __( 'Run Connection Test', 'just-gcs-offload' ), 'secondary', 'run_test', true, array( $disabled => $disabled ) );
 				?>
 			</form>
+
+			<hr />
+
+			<h2><?php esc_html_e( 'Bulk Operations', 'just-gcs-offload' ); ?></h2>
+			<p><?php esc_html_e( 'Sync your existing Media Library with Google Cloud Storage without using command-line tools.', 'just-gcs-offload' ); ?></p>
+
+			<div class="card" style="max-width: 800px; margin-top: 15px; padding: 20px;">
+				<!-- Operation 1: Sync Metadata -->
+				<div class="bulk-section" style="margin-bottom: 25px;">
+					<h3 style="margin-top: 0;"><?php esc_html_e( '1. Sync Database Metadata Only', 'just-gcs-offload' ); ?></h3>
+					<p class="description" style="margin-bottom: 15px;"><?php esc_html_e( 'Generate offload metadata in the database for files already copied to the GCS bucket (using gsutil or rclone). This process does not upload any files and is extremely fast.', 'just-gcs-offload' ); ?></p>
+					
+					<div style="margin-bottom: 15px;">
+						<label for="bulk_meta_overwrite">
+							<input type="checkbox" id="bulk_meta_overwrite" value="1" />
+							<?php esc_html_e( 'Overwrite existing GCS metadata (re-sync)', 'just-gcs-offload' ); ?>
+						</label>
+					</div>
+					
+					<button type="button" class="button button-secondary" id="btn_run_bulk_meta" <?php echo $disabled; ?>>
+						<?php esc_html_e( 'Run Metadata Sync', 'just-gcs-offload' ); ?>
+					</button>
+				</div>
+
+				<hr style="margin: 20px 0;" />
+
+				<!-- Operation 2: Sync All Files -->
+				<div class="bulk-section">
+					<h3 style="margin-top: 0;"><?php esc_html_e( '2. Batch Upload Local Files to GCS', 'just-gcs-offload' ); ?></h3>
+					<p class="description" style="margin-bottom: 15px;"><?php esc_html_e( 'Scan all existing media library attachments, upload them to GCS, and update database records. This runs in secure chunks to prevent PHP timeout errors.', 'just-gcs-offload' ); ?></p>
+					
+					<div style="margin-bottom: 10px;">
+						<label for="bulk_all_overwrite">
+							<input type="checkbox" id="bulk_all_overwrite" value="1" />
+							<?php esc_html_e( 'Re-upload files even if already synced', 'just-gcs-offload' ); ?>
+						</label>
+					</div>
+					<div style="margin-bottom: 15px;">
+						<label for="bulk_all_delete_local" style="color: #d63638; font-weight: 500;">
+							<input type="checkbox" id="bulk_all_delete_local" value="1" />
+							<?php esc_html_e( 'Delete local files after successful upload (Caution)', 'just-gcs-offload' ); ?>
+						</label>
+					</div>
+					
+					<button type="button" class="button button-secondary" id="btn_run_bulk_all" <?php echo $disabled; ?>>
+						<?php esc_html_e( 'Run Batch Upload', 'just-gcs-offload' ); ?>
+					</button>
+				</div>
+
+				<!-- Progress Area -->
+				<div id="just_gcs_bulk_progress_container" style="display:none; margin-top: 25px; padding: 20px; background: #f6f7f7; border: 1px solid #c3c4c7; border-radius: 4px;">
+					<h4 id="just_gcs_bulk_progress_title" style="margin: 0 0 15px 0; font-size: 14px;"></h4>
+					
+					<div style="background: #dcdcde; border-radius: 10px; height: 16px; overflow: hidden; margin-bottom: 12px; position: relative; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">
+						<div id="just_gcs_bulk_progress_bar" style="background: linear-gradient(90deg, #2271b1, #35b0ff); height: 100%; width: 0%; transition: width 0.2s ease; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.15);"></div>
+					</div>
+					
+					<div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; margin-bottom: 15px;">
+						<span id="just_gcs_bulk_progress_text">0%</span>
+						<span id="just_gcs_bulk_progress_stats">0 / 0</span>
+					</div>
+
+					<div id="just_gcs_bulk_progress_log" style="height: 180px; overflow-y: scroll; background: #1d2327; color: #39ff14; font-family: Consolas, Monaco, monospace; font-size: 12px; padding: 12px; border-radius: 4px; border: 1px solid #3c434a; white-space: pre-wrap; line-height: 1.5;"></div>
+					
+					<div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+						<span id="just_gcs_bulk_status_label" style="font-style: italic; color: #646970;"></span>
+						<button type="button" class="button button-link-delete" id="btn_cancel_bulk" style="color: #d63638; text-decoration: none; font-weight: 500;"><?php esc_html_e( 'Cancel Operation', 'just-gcs-offload' ); ?></button>
+					</div>
+				</div>
+			</div>
 		</div>
+
+		<script type="text/javascript">
+		var just_gcs_bulk_data = {
+			nonce: <?php echo json_encode( wp_create_nonce( 'just_wp_gcs_bulk_nonce' ) ); ?>
+		};
+
+		jQuery(document).ready(function($) {
+			var totalItems = 0;
+			var processedItems = 0;
+			var idsQueue = [];
+			var batchSize = 10;
+			var currentType = '';
+			var isRunning = false;
+			var deleteLocal = 0;
+			var overwrite = 0;
+
+			function logMessage(msg) {
+				var $log = $('#just_gcs_bulk_progress_log');
+				var time = new Date().toLocaleTimeString();
+				$log.append('[' + time + '] ' + msg + '\n');
+				$log.scrollTop($log[0].scrollHeight);
+			}
+
+			function updateProgress() {
+				var percentage = totalItems > 0 ? Math.round((processedItems / totalItems) * 100) : 0;
+				$('#just_gcs_bulk_progress_bar').css('width', percentage + '%');
+				$('#just_gcs_bulk_progress_text').text(percentage + '%');
+				$('#just_gcs_bulk_progress_stats').text(processedItems + ' / ' + totalItems);
+			}
+
+			function processNextBatch() {
+				if (!isRunning) {
+					logMessage('<?php esc_html_e( 'Operation canceled by user.', 'just-gcs-offload' ); ?>');
+					$('#just_gcs_bulk_status_label').text('<?php esc_html_e( 'Canceled.', 'just-gcs-offload' ); ?>');
+					enableControls();
+					return;
+				}
+
+				if (idsQueue.length === 0) {
+					isRunning = false;
+					$('#btn_cancel_bulk').hide();
+					logMessage('<?php esc_html_e( '--- Operation completed successfully! ---', 'just-gcs-offload' ); ?>');
+					$('#just_gcs_bulk_status_label').text('<?php esc_html_e( 'Completed.', 'just-gcs-offload' ); ?>');
+					enableControls();
+					return;
+				}
+
+				var batch = idsQueue.splice(0, batchSize);
+				$('#just_gcs_bulk_status_label').text('<?php esc_html_e( 'Processing...', 'just-gcs-offload' ); ?>');
+
+				$.ajax({
+					url: ajaxurl,
+					type: 'POST',
+					dataType: 'json',
+					data: {
+						action: 'just_wp_gcs_process_batch',
+						nonce: just_gcs_bulk_data.nonce,
+						type: currentType,
+						ids: batch,
+						delete_local: deleteLocal,
+						overwrite: overwrite
+					},
+					success: function(response) {
+						if (response.success) {
+							if (response.data && response.data.logs) {
+								response.data.logs.forEach(function(l) {
+									logMessage(l);
+								});
+							}
+							processedItems += batch.length;
+							updateProgress();
+							processNextBatch();
+						} else {
+							var errMsg = response.data && response.data.message ? response.data.message : '<?php esc_html_e( 'Unknown error occurred.', 'just-gcs-offload' ); ?>';
+							logMessage('<?php esc_html_e( 'Error: ', 'just-gcs-offload' ); ?>' + errMsg);
+							isRunning = false;
+							$('#just_gcs_bulk_status_label').text('<?php esc_html_e( 'Failed.', 'just-gcs-offload' ); ?>');
+							enableControls();
+						}
+					},
+					error: function() {
+						logMessage('<?php esc_html_e( 'Error: AJAX request failed.', 'just-gcs-offload' ); ?>');
+						isRunning = false;
+						$('#just_gcs_bulk_status_label').text('<?php esc_html_e( 'Failed.', 'just-gcs-offload' ); ?>');
+						enableControls();
+					}
+				});
+			}
+
+			function disableControls() {
+				$('#btn_run_bulk_meta, #btn_run_bulk_all, #bulk_meta_overwrite, #bulk_all_overwrite, #bulk_all_delete_local').prop('disabled', true);
+			}
+
+			function enableControls() {
+				$('#btn_run_bulk_meta, #btn_run_bulk_all, #bulk_meta_overwrite, #bulk_all_overwrite, #bulk_all_delete_local').prop('disabled', false);
+			}
+
+			function startBulkOperation(type) {
+				if (isRunning) return;
+
+				currentType = type;
+				deleteLocal = type === 'all' && $('#bulk_all_delete_local').is(':checked') ? 1 : 0;
+				overwrite = type === 'metadata' 
+					? ($('#bulk_meta_overwrite').is(':checked') ? 1 : 0)
+					: ($('#bulk_all_overwrite').is(':checked') ? 1 : 0);
+
+				batchSize = type === 'metadata' ? 50 : 3;
+
+				$('#just_gcs_bulk_progress_log').empty();
+				$('#just_gcs_bulk_progress_container').show();
+				$('#btn_cancel_bulk').show();
+
+				var title = type === 'metadata' 
+					? '<?php esc_html_e( 'Syncing Database Metadata', 'just-gcs-offload' ); ?>' 
+					: '<?php esc_html_e( 'Batch Uploading Files to GCS', 'just-gcs-offload' ); ?>';
+				$('#just_gcs_bulk_progress_title').text(title);
+				$('#just_gcs_bulk_status_label').text('<?php esc_html_e( 'Scanning attachments...', 'just-gcs-offload' ); ?>');
+
+				logMessage('<?php esc_html_e( 'Initializing bulk operation...', 'just-gcs-offload' ); ?>');
+				logMessage('<?php esc_html_e( 'Scanning Media Library for attachments...', 'just-gcs-offload' ); ?>');
+
+				isRunning = true;
+				totalItems = 0;
+				processedItems = 0;
+				updateProgress();
+				disableControls();
+
+				$.ajax({
+					url: ajaxurl,
+					type: 'POST',
+					dataType: 'json',
+					data: {
+						action: 'just_wp_gcs_get_attachment_ids',
+						nonce: just_gcs_bulk_data.nonce
+					},
+					success: function(response) {
+						if (response.success && response.data && response.data.ids) {
+							idsQueue = response.data.ids;
+							totalItems = idsQueue.length;
+							logMessage('<?php esc_html_e( 'Scan complete. Found ', 'just-gcs-offload' ); ?>' + totalItems + '<?php esc_html_e( ' attachments to process.', 'just-gcs-offload' ); ?>');
+							updateProgress();
+							processNextBatch();
+						} else {
+							logMessage('<?php esc_html_e( 'Error: Failed to scan attachments.', 'just-gcs-offload' ); ?>');
+							isRunning = false;
+							$('#just_gcs_bulk_status_label').text('<?php esc_html_e( 'Failed.', 'just-gcs-offload' ); ?>');
+							enableControls();
+						}
+					},
+					error: function() {
+						logMessage('<?php esc_html_e( 'Error: Failed to fetch attachments.', 'just-gcs-offload' ); ?>');
+						isRunning = false;
+						$('#just_gcs_bulk_status_label').text('<?php esc_html_e( 'Failed.', 'just-gcs-offload' ); ?>');
+						enableControls();
+					}
+				});
+			}
+
+			$('#btn_run_bulk_meta').on('click', function() {
+				startBulkOperation('metadata');
+			});
+
+			$('#btn_run_bulk_all').on('click', function() {
+				startBulkOperation('all');
+			});
+
+			$('#btn_cancel_bulk').on('click', function() {
+				isRunning = false;
+				$(this).hide();
+				logMessage('<?php esc_html_e( 'Canceling operation...', 'just-gcs-offload' ); ?>');
+				$('#just_gcs_bulk_status_label').text('<?php esc_html_e( 'Canceling...', 'just-gcs-offload' ); ?>');
+			});
+		});
+		</script>
 		<?php
 	}
 
@@ -327,5 +574,166 @@ class Just_WP_GCS_Settings {
 			}
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+	}
+
+	/**
+	 * AJAX handler to scan all attachment IDs in the Media Library.
+	 */
+	public function ajax_get_attachment_ids() {
+		check_ajax_referer( 'just_wp_gcs_bulk_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized access.', 'just-gcs-offload' ) ) );
+		}
+
+		$query_args = array(
+			'post_type'      => 'attachment',
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+		);
+
+		$attachment_ids = get_posts( $query_args );
+
+		wp_send_json_success( array( 'ids' => $attachment_ids ) );
+	}
+
+	/**
+	 * AJAX handler to process a batch of attachments (sync metadata or upload files).
+	 */
+	public function ajax_process_batch() {
+		check_ajax_referer( 'just_wp_gcs_bulk_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized access.', 'just-gcs-offload' ) ) );
+		}
+
+		$type         = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+		$ids          = isset( $_POST['ids'] ) ? array_map( 'intval', (array) $_POST['ids'] ) : array();
+		$overwrite    = isset( $_POST['overwrite'] ) && $_POST['overwrite'] === '1';
+		$delete_local = isset( $_POST['delete_local'] ) && $_POST['delete_local'] === '1';
+
+		$bucket = get_option( 'just_wp_gcs_bucket' );
+		$prefix = get_option( 'just_wp_gcs_prefix', '' );
+
+		if ( empty( $bucket ) ) {
+			wp_send_json_error( array( 'message' => __( 'GCS bucket name is not configured.', 'just-gcs-offload' ) ) );
+		}
+
+		if ( empty( $ids ) ) {
+			wp_send_json_success( array( 'logs' => array() ) );
+		}
+
+		$logs = array();
+		$upload_dir = wp_upload_dir();
+		$basedir    = $upload_dir['basedir'];
+
+		foreach ( $ids as $attachment_id ) {
+			$gcs_info = get_post_meta( $attachment_id, '_wp_gcs_info', true );
+			if ( ! empty( $gcs_info ) && ! $overwrite ) {
+				$logs[] = sprintf( __( 'ID %d: Already synced, skipped.', 'just-gcs-offload' ), $attachment_id );
+				continue;
+			}
+
+			$main_file = get_post_meta( $attachment_id, '_wp_attached_file', true );
+			if ( empty( $main_file ) ) {
+				$logs[] = sprintf( __( 'ID %d: No associated file found, skipped.', 'just-gcs-offload' ), $attachment_id );
+				continue;
+			}
+
+			if ( $type === 'metadata' ) {
+				$gcs_info = array(
+					'bucket' => $bucket,
+					'prefix' => $prefix,
+					'file'   => $main_file
+				);
+				update_post_meta( $attachment_id, '_wp_gcs_info', $gcs_info );
+				$logs[] = sprintf( __( 'ID %d: Metadata synced successfully (%s).', 'just-gcs-offload' ), $attachment_id, basename( $main_file ) );
+			} elseif ( $type === 'all' ) {
+				$local_main_file = $basedir . '/' . $main_file;
+				if ( ! file_exists( $local_main_file ) ) {
+					$logs[] = sprintf( __( 'ID %d: Local file not found: %s', 'just-gcs-offload' ), $attachment_id, basename( $main_file ) );
+					continue;
+				}
+
+				$metadata     = wp_get_attachment_metadata( $attachment_id );
+				$relative_dir = dirname( $main_file );
+				if ( $relative_dir === '.' ) {
+					$relative_dir = '';
+				}
+
+				$files_to_upload = array();
+
+				// Add main file
+				$gcs_main_key = $this->build_gcs_key( $prefix, $main_file );
+				$files_to_upload[] = array(
+					'local_path' => $local_main_file,
+					'gcs_key'    => $gcs_main_key
+				);
+
+				// Add size files
+				if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
+					foreach ( $metadata['sizes'] as $size => $size_info ) {
+						if ( empty( $size_info['file'] ) ) {
+							continue;
+						}
+						$size_file_name = $size_info['file'];
+						$relative_size_path = $relative_dir ? $relative_dir . '/' . $size_file_name : $size_file_name;
+						$local_size_file = $basedir . '/' . $relative_size_path;
+
+						if ( file_exists( $local_size_file ) ) {
+							$gcs_size_key = $this->build_gcs_key( $prefix, $relative_size_path );
+							$files_to_upload[] = array(
+								'local_path' => $local_size_file,
+								'gcs_key'    => $gcs_size_key
+							);
+						}
+					}
+				}
+
+				$uploaded_successfully = array();
+				$failed_uploads        = array();
+
+				foreach ( $files_to_upload as $file_info ) {
+					$upload = $this->client->upload_file( $file_info['local_path'], $file_info['gcs_key'] );
+					if ( is_wp_error( $upload ) ) {
+						$failed_uploads[] = $upload->get_error_message();
+					} else {
+						$uploaded_successfully[] = $file_info;
+					}
+				}
+
+				if ( count( $uploaded_successfully ) > 0 && count( $failed_uploads ) === 0 ) {
+					$gcs_info_new = array(
+						'bucket' => $bucket,
+						'prefix' => $prefix,
+						'file'   => $main_file
+					);
+					update_post_meta( $attachment_id, '_wp_gcs_info', $gcs_info_new );
+					$logs[] = sprintf( __( 'ID %d: Uploaded successfully (%s).', 'just-gcs-offload' ), $attachment_id, basename( $main_file ) );
+
+					if ( $delete_local ) {
+						foreach ( $uploaded_successfully as $file_info ) {
+							wp_delete_file( $file_info['local_path'] );
+						}
+					}
+				} else {
+					$logs[] = sprintf( __( 'ID %d: Failed to upload (%s). Errors: %s', 'just-gcs-offload' ), $attachment_id, basename( $main_file ), implode( ', ', $failed_uploads ) );
+				}
+			}
+		}
+
+		wp_send_json_success( array( 'logs' => $logs ) );
+	}
+
+	/**
+	 * Build GCS Key combining prefix and relative file path.
+	 */
+	private function build_gcs_key( $prefix, $relative_path ) {
+		$key = $relative_path;
+		if ( ! empty( $prefix ) ) {
+			$key = $prefix . '/' . $key;
+		}
+		return ltrim( $key, '/' );
 	}
 }

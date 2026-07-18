@@ -4,7 +4,7 @@ Tags: google cloud storage, gcs, offload, media library, cdn
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -45,6 +45,9 @@ No. The plugin implements a minimal GCS REST client in pure PHP with no external
 Either enable Uniform bucket-level access and grant the Storage Object Viewer role to `allUsers` (recommended), or use Fine-grained access control and enable the "Set Public ACL" option in the plugin settings.
 
 == Changelog ==
+
+= 1.2.0 =
+* Added Bulk Operations UI to GCS Offload Settings page (Sync Database Metadata Only and Batch Upload Local Files to GCS) using secure, sequential AJAX requests with progress bar and live log output.
 
 = 1.1.0 =
 * Renamed the plugin to "Just GCS Offload" (slug: `just-gcs-offload`) to comply with WordPress.org naming guidelines. Existing settings are preserved.
