@@ -81,3 +81,25 @@ Our recommended methodology:
 1. Delegate **initial/bulk file synchronization** to the high-performance CLI utility `gcloud rsync`.
 2. Let **`just-gcs-offload`** handle dynamic new uploads and real-time database URL rewrites.
 This hybrid approach keeps your WordPress site light, fast, and completely error-free.
+
+---
+
+## 5. Seamless Migration between GCS and S3
+
+Because `just-gcs-offload` and `just-s3-offload` share a completely symmetric database metadata structure, migrating your media library from GCS to S3 (or vice versa) is incredibly straightforward:
+
+1. **GCS Meta Structure (`_wp_gcs_info`)**: `['bucket' => ..., 'prefix' => ..., 'file' => ...]`
+2. **S3 Meta Structure (`_wp_s3_info`)**: `['bucket' => ..., 'prefix' => ..., 'file' => ...]`
+
+After syncing the physical files between your buckets using a tool like `rclone`, you only need to run a single SQL query in your WordPress database to update all metadata keys:
+
+```sql
+-- To migrate from GCS to S3:
+UPDATE wp_postmeta SET meta_key = '_wp_s3_info' WHERE meta_key = '_wp_gcs_info';
+
+-- To migrate from S3 to GCS:
+UPDATE wp_postmeta SET meta_key = '_wp_gcs_info' WHERE meta_key = '_wp_s3_info';
+```
+
+Then deactivate the old plugin, activate the new one, configure the settings, and your Media Library migration is complete in seconds without any broken images!
+

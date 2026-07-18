@@ -81,3 +81,25 @@ gcloud storage rsync wp-content/uploads/ gs://[BUCKET_NAME]/[PREFIX] --recursive
 1. **歷史檔案與大批搬移**：交給高效率的命令列工具 `gcloud rsync` 處理。
 2. **動態上傳與網址改寫**：交給極輕量的 **`just-gcs-offload`** 即時處理。
 這套實作方法能確保您的 WordPress 主機保持最輕量、最穩定的運作狀態。
+
+---
+
+## 5. GCS 與 S3 之間的無縫轉移
+
+因為 `just-gcs-offload` 和 `just-s3-offload` 的資料庫元數據 (Metadata) 結構是完全對稱的，這使得在 Google Cloud Storage 與 Amazon S3（或 S3 相容儲存）之間進行移轉變得無比簡單：
+
+1. **GCS 中繼資料 (`_wp_gcs_info`)**：`['bucket' => ..., 'prefix' => ..., 'file' => ...]`
+2. **S3 中繼資料 (`_wp_s3_info`)**：`['bucket' => ..., 'prefix' => ..., 'file' => ...]`
+
+在使用 `rclone` 等工具同步完儲存桶中的實體檔案後，您只需要在 WordPress 資料庫中執行一行 SQL 指令，即可更新所有媒體庫關聯：
+
+```sql
+-- 從 GCS 轉移到 S3：
+UPDATE wp_postmeta SET meta_key = '_wp_s3_info' WHERE meta_key = '_wp_gcs_info';
+
+-- 從 S3 轉移到 GCS：
+UPDATE wp_postmeta SET meta_key = '_wp_gcs_info' WHERE meta_key = '_wp_s3_info';
+```
+
+接著停用舊外掛、啟用新外掛並設定金鑰，整個移轉過程便能在數秒內無縫完成，完全不會有破圖問題！
+
