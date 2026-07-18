@@ -25,7 +25,7 @@
 
 ## 安裝步驟
 
-1. 至本專案的 [Releases](https://github.com/ivanusto/just-wp-gcs/releases) 頁面下載最新版的 `just-gcs-offload.zip`。
+1. 至本專案的 [Releases](https://github.com/ivanusto/just-gcs-offload/releases) 頁面下載最新版的 `just-gcs-offload.zip`。
 2. 登入您的 WordPress 後台，前往 **「外掛」->「安裝外掛」->「上傳外掛」**，選擇下載的 ZIP 檔案並點擊 **「立即安裝」**。
 3. 啟用外掛。
 

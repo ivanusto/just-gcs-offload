@@ -25,7 +25,7 @@ Unlike other bloated cloud storage plugins, **Just GCS Offload** is designed to 
 
 ## Installation
 
-1. Download the latest `just-gcs-offload.zip` from the [Releases](https://github.com/ivanusto/just-wp-gcs/releases) page.
+1. Download the latest `just-gcs-offload.zip` from the [Releases](https://github.com/ivanusto/just-gcs-offload/releases) page.
 2. In your WordPress admin, go to **Plugins -> Add New -> Upload Plugin**, select the zip file, and click **Install Now**.
 3. Activate the plugin.
 
