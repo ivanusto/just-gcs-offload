@@ -350,11 +350,26 @@ class Just_WP_GCS_Settings {
 			var deleteLocal = 0;
 			var overwrite = 0;
 
-			function logMessage(msg) {
-				var $log = $('#just_gcs_bulk_progress_log');
+			// Keep the log bounded and render it in a single write per batch, so the
+			// DOM never grows past maxLogLines and reflow cost stays constant.
+			var maxLogLines = 300;
+			var logLines = [];
+
+			function appendLogLines(msgs) {
 				var time = new Date().toLocaleTimeString();
-				$log.append('[' + time + '] ' + msg + '\n');
+				for (var i = 0; i < msgs.length; i++) {
+					logLines.push('[' + time + '] ' + msgs[i]);
+				}
+				if (logLines.length > maxLogLines) {
+					logLines = logLines.slice(logLines.length - maxLogLines);
+				}
+				var $log = $('#just_gcs_bulk_progress_log');
+				$log.text(logLines.join('\n') + '\n');
 				$log.scrollTop($log[0].scrollHeight);
+			}
+
+			function logMessage(msg) {
+				appendLogLines([msg]);
 			}
 
 			function updateProgress() {
@@ -398,10 +413,8 @@ class Just_WP_GCS_Settings {
 					},
 					success: function(response) {
 						if (response.success) {
-							if (response.data && response.data.logs) {
-								response.data.logs.forEach(function(l) {
-									logMessage(l);
-								});
+							if (response.data && response.data.logs && response.data.logs.length) {
+								appendLogLines(response.data.logs);
 							}
 							processedItems += batch.length;
 							updateProgress();
@@ -442,6 +455,7 @@ class Just_WP_GCS_Settings {
 
 				batchSize = type === 'metadata' ? 50 : 3;
 
+				logLines = [];
 				$('#just_gcs_bulk_progress_log').empty();
 				$('#just_gcs_bulk_progress_container').show();
 				$('#btn_cancel_bulk').show();
