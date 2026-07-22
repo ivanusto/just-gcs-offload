@@ -4,7 +4,7 @@ Tags: google cloud storage, gcs, offload, media library, cdn
 Requires at least: 5.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.2.1
+Stable tag: 1.2.2
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -45,6 +45,10 @@ No. The plugin implements a minimal GCS REST client in pure PHP with no external
 Either enable Uniform bucket-level access and grant the Storage Object Viewer role to `allUsers` (recommended), or use Fine-grained access control and enable the "Set Public ACL" option in the plugin settings.
 
 == Changelog ==
+
+= 1.2.2 =
+* Offload the pre-conversion original image (`original_image` in attachment metadata, e.g. the JPEG source of a WebP conversion or the pre-scaled original) in automatic uploads, the Bulk Upload UI, and WP-CLI sync-all, so the Media Library "original file" link resolves on GCS.
+* Delete the original image object from GCS when an attachment is permanently deleted.
 
 = 1.2.1 =
 * Bulk Operations UI: the live log now keeps only the most recent 300 lines and renders each batch in a single write, preventing severe browser slowdown on large media libraries (tens of thousands of items).

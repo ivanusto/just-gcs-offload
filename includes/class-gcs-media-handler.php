@@ -81,7 +81,20 @@ class Just_WP_GCS_Media_Handler {
 			);
 		}
 
-		// 2. Add all intermediate size files to upload queue
+		// 2. Add the pre-conversion/pre-scaled original image (e.g. the JPEG source of a
+		// WebP conversion) so wp_get_original_image_url() also resolves on GCS
+		if ( ! empty( $metadata['original_image'] ) ) {
+			$relative_original_path = $relative_dir ? $relative_dir . '/' . $metadata['original_image'] : $metadata['original_image'];
+			$local_original_file    = $basedir . '/' . $relative_original_path;
+			if ( $relative_original_path !== $main_file && file_exists( $local_original_file ) ) {
+				$files_to_upload[] = array(
+					'local_path' => $local_original_file,
+					'gcs_key'    => $this->build_gcs_key( $prefix, $relative_original_path ),
+				);
+			}
+		}
+
+		// 3. Add all intermediate size files to upload queue
 		if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
 			foreach ( $metadata['sizes'] as $size => $size_info ) {
 				if ( empty( $size_info['file'] ) ) {
@@ -101,7 +114,7 @@ class Just_WP_GCS_Media_Handler {
 			}
 		}
 
-		// 3. Perform uploads
+		// 4. Perform uploads
 		$uploaded_successfully = array();
 		$failed_uploads        = array();
 
@@ -120,7 +133,7 @@ class Just_WP_GCS_Media_Handler {
 			}
 		}
 
-		// 4. Save metadata flag and delete local files if configured and everything succeeded
+		// 5. Save metadata flag and delete local files if configured and everything succeeded
 		if ( count( $uploaded_successfully ) > 0 && count( $failed_uploads ) === 0 ) {
 			// Save sync metadata
 			$gcs_info = array(
@@ -280,6 +293,14 @@ class Just_WP_GCS_Media_Handler {
 		if ( ! empty( $main_file ) ) {
 			$gcs_main_key = $this->build_gcs_key( $prefix, $main_file );
 			$this->client->delete_file( $gcs_main_key );
+		}
+
+		// Delete the pre-conversion original image key
+		if ( ! empty( $metadata['original_image'] ) ) {
+			$relative_original_path = $relative_dir ? $relative_dir . '/' . $metadata['original_image'] : $metadata['original_image'];
+			if ( $relative_original_path !== $main_file ) {
+				$this->client->delete_file( $this->build_gcs_key( $prefix, $relative_original_path ) );
+			}
 		}
 
 		// Delete sizes keys

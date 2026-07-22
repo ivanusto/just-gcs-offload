@@ -194,6 +194,18 @@ class Just_WP_GCS_CLI {
 					'gcs_key'    => $gcs_main_key
 				);
 
+				// Add original image (pre-conversion source, e.g. the JPEG of a WebP)
+				if ( ! empty( $metadata['original_image'] ) ) {
+					$relative_original_path = $relative_dir ? $relative_dir . '/' . $metadata['original_image'] : $metadata['original_image'];
+					$local_original_file    = $basedir . '/' . $relative_original_path;
+					if ( $relative_original_path !== $main_file && file_exists( $local_original_file ) ) {
+						$files_to_upload[] = array(
+							'local_path' => $local_original_file,
+							'gcs_key'    => $this->build_gcs_key( $prefix, $relative_original_path )
+						);
+					}
+				}
+
 				// Add size files
 				if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
 					foreach ( $metadata['sizes'] as $size => $size_info ) {
