@@ -24,7 +24,7 @@
 
 * PHP 7.4 或更高版本
 * 啟用 PHP OpenSSL 延伸模組（用於 JWT 簽名）
-* WordPress 5.0 或更高版本
+* WordPress 6.0 或更高版本
 
 ## 安裝步驟
 

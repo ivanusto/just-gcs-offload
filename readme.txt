@@ -1,10 +1,10 @@
 === Just GCS Offload ===
 Contributors: ivanusto
 Tags: google cloud storage, gcs, offload, media library, cdn
-Requires at least: 5.0
+Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.2.2
+Stable tag: 1.3.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -45,6 +45,11 @@ No. The plugin implements a minimal GCS REST client in pure PHP with no external
 Either enable Uniform bucket-level access and grant the Storage Object Viewer role to `allUsers` (recommended), or use Fine-grained access control and enable the "Set Public ACL" option in the plugin settings.
 
 == Changelog ==
+
+= 1.3.0 =
+* New: on-demand rehydration. When a local file is missing but the attachment is offloaded (e.g. after enabling "Delete Local Files"), the plugin automatically downloads it back from GCS the moment WordPress needs the local path — so the built-in image editor and thumbnail regeneration keep working. Downloads only trigger in admin and WP-CLI contexts, never on the front end.
+* New: GCS client download support (streamed to disk via a temp file, so failed downloads never leave partial files).
+* Updated the "Delete Local Files" setting description to reflect the new behavior.
 
 = 1.2.2 =
 * Offload the pre-conversion original image (`original_image` in attachment metadata, e.g. the JPEG source of a WebP conversion or the pre-scaled original) in automatic uploads, the Bulk Upload UI, and WP-CLI sync-all, so the Media Library "original file" link resolves on GCS.

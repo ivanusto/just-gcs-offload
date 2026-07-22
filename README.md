@@ -24,7 +24,7 @@ Unlike other bloated cloud storage plugins, **Just GCS Offload** is designed to 
 
 * PHP 7.4 or higher
 * PHP OpenSSL extension enabled (for JWT signing)
-* WordPress 5.0 or higher
+* WordPress 6.0 or higher
 
 ## Installation
 

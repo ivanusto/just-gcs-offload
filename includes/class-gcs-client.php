@@ -238,6 +238,76 @@ class Just_WP_GCS_Client {
 	}
 
 	/**
+	 * Download an object from GCS to a local file path.
+	 *
+	 * @param string $gcs_path   Path of the object in the GCS bucket.
+	 * @param string $local_path Absolute local destination path.
+	 * @return bool|WP_Error True on success, WP_Error on failure.
+	 */
+	public function download_file( $gcs_path, $local_path ) {
+		$token = $this->get_oauth_token();
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+
+		$bucket = get_option( 'just_wp_gcs_bucket' );
+		if ( empty( $bucket ) ) {
+			return new WP_Error( 'no_bucket', __( 'GCS bucket name is not configured.', 'just-gcs-offload' ) );
+		}
+
+		$dir = dirname( $local_path );
+		if ( ! wp_mkdir_p( $dir ) ) {
+			/* translators: %s: Directory path. */
+			return new WP_Error( 'mkdir_failed', sprintf( __( 'Failed to create local directory: %s', 'just-gcs-offload' ), $dir ) );
+		}
+
+		$url = sprintf(
+			'https://storage.googleapis.com/storage/v1/b/%s/o/%s?alt=media',
+			urlencode( $bucket ),
+			rawurlencode( $gcs_path )
+		);
+
+		// Stream into a temp file so a failed download never leaves a partial file
+		// at the final path.
+		$tmp_path = $local_path . '.gcs-download';
+
+		$response = wp_remote_get( $url, array(
+			'timeout'  => 120,
+			'stream'   => true,
+			'filename' => $tmp_path,
+			'headers'  => array(
+				'Authorization' => 'Bearer ' . $token,
+			),
+		) );
+
+		if ( is_wp_error( $response ) ) {
+			wp_delete_file( $tmp_path );
+			return $response;
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		if ( $code !== 200 ) {
+			wp_delete_file( $tmp_path );
+			/* translators: 1: HTTP status code, 2: Object path in the bucket. */
+			return new WP_Error( 'download_failed', sprintf( __( 'Download from GCS failed with status %1$d for object: %2$s', 'just-gcs-offload' ), $code, $gcs_path ) );
+		}
+
+		global $wp_filesystem;
+		if ( ! function_exists( 'WP_Filesystem' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+		WP_Filesystem();
+
+		if ( ! $wp_filesystem || ! $wp_filesystem->move( $tmp_path, $local_path, true ) ) {
+			wp_delete_file( $tmp_path );
+			/* translators: %s: Local file path. */
+			return new WP_Error( 'move_failed', sprintf( __( 'Failed to move downloaded file into place: %s', 'just-gcs-offload' ), $local_path ) );
+		}
+
+		return true;
+	}
+
+	/**
 	 * Perform a connection test by uploading and deleting a test file.
 	 *
 	 * @return bool|WP_Error True if connection test passes, WP_Error otherwise.

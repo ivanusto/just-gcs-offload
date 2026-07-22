@@ -225,7 +225,7 @@ class Just_WP_GCS_Settings {
 			<input type="checkbox" name="just_wp_gcs_delete_local" id="just_wp_gcs_delete_local" value="1" <?php checked( $value, '1' ); ?> />
 			<?php esc_html_e( 'Delete local files after successful GCS upload', 'just-gcs-offload' ); ?>
 		</label>
-		<p class="description" style="color: #d63638; font-weight: 500;"><?php esc_html_e( 'Warning: If enabled, WordPress will delete the server local copy. Built-in image editing (crop/rotate) in WP Admin requires local files and might fail.', 'just-gcs-offload' ); ?></p>
+		<p class="description" style="color: #d63638; font-weight: 500;"><?php esc_html_e( 'Warning: If enabled, WordPress deletes the server local copy after a successful upload. When a local file is needed again (for example by the built-in image editor), the plugin downloads it back from GCS on demand in admin and WP-CLI contexts.', 'just-gcs-offload' ); ?></p>
 		<?php
 	}
 

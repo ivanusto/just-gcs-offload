@@ -31,6 +31,10 @@ class Just_WP_GCS_Media_Handler {
 
 		// Hook into attachment deletion to clean up GCS files
 		add_action( 'delete_attachment', array( $this, 'delete_attachment_files' ) );
+
+		// Fetch offloaded files back from GCS on demand when a local copy is needed
+		// (e.g. the built-in image editor) but was deleted after offload
+		add_filter( 'get_attached_file', array( $this, 'maybe_rehydrate_local_file' ), 10, 2 );
 	}
 
 	/**
@@ -154,6 +158,49 @@ class Just_WP_GCS_Media_Handler {
 
 		delete_post_meta( $attachment_id, '_wp_gcs_processing' );
 		return $metadata;
+	}
+
+	/**
+	 * Download the attached file back from GCS when the local copy is missing.
+	 *
+	 * Only runs in admin and WP-CLI contexts, so front-end requests never trigger
+	 * bucket downloads. Each attachment is attempted at most once per request.
+	 *
+	 * @param string $file          Local file path.
+	 * @param int    $attachment_id Attachment post ID.
+	 * @return string The local file path (unchanged).
+	 */
+	public function maybe_rehydrate_local_file( $file, $attachment_id ) {
+		static $attempted = array();
+
+		if ( empty( $file ) || file_exists( $file ) || isset( $attempted[ $attachment_id ] ) ) {
+			return $file;
+		}
+
+		if ( ! is_admin() && ! ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+			return $file;
+		}
+
+		$gcs_info = get_post_meta( $attachment_id, '_wp_gcs_info', true );
+		if ( ! $gcs_info || ! is_array( $gcs_info ) || empty( $gcs_info['bucket'] ) ) {
+			return $file;
+		}
+
+		$attempted[ $attachment_id ] = true;
+
+		$relative_path = get_post_meta( $attachment_id, '_wp_attached_file', true );
+		if ( empty( $relative_path ) ) {
+			return $file;
+		}
+
+		$prefix = isset( $gcs_info['prefix'] ) ? $gcs_info['prefix'] : '';
+		$result = $this->client->download_file( $this->build_gcs_key( $prefix, $relative_path ), $file );
+
+		if ( is_wp_error( $result ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( sprintf( 'Just GCS Offload: Rehydrate failed for attachment %d: %s', $attachment_id, $result->get_error_message() ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Only logs when WP_DEBUG is enabled.
+		}
+
+		return $file;
 	}
 
 	/**
