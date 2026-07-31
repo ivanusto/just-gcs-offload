@@ -91,6 +91,6 @@ If you encounter any issues (such as a fatal error or blank screen in the Media 
    * WordPress Debug Log: `wp-content/debug.log`
    * Web Server Error Logs: `/var/log/apache2/error.log` or `/var/log/nginx/error.log`
 
-## License
+## License / 授權條款
 
-This project is licensed under the MIT License.
+This project is licensed under the [GNU General Public License v2.0 or later (GPL-2.0-or-later)](LICENSE).
