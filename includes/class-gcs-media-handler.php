@@ -55,6 +55,11 @@ class Just_WP_GCS_Media_Handler {
 			return $metadata;
 		}
 
+		// Some attachments, such as the site icon, must remain on local storage.
+		if ( $this->should_skip_attachment( $attachment_id ) ) {
+			return $metadata;
+		}
+
 		update_post_meta( $attachment_id, '_wp_gcs_processing', '1' );
 
 		$prefix     = get_option( 'just_wp_gcs_prefix', '' );
@@ -390,6 +395,16 @@ class Just_WP_GCS_Media_Handler {
 				$this->client->delete_file( $gcs_size_key );
 			}
 		}
+	}
+
+	/**
+	 * Determine whether an attachment must stay on local storage.
+	 *
+	 * @param int $attachment_id Attachment post ID.
+	 * @return bool True when the attachment must not be offloaded.
+	 */
+	public function should_skip_attachment( $attachment_id ) {
+		return just_wp_gcs_should_skip_attachment( $attachment_id );
 	}
 
 	/**

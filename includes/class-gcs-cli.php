@@ -77,6 +77,11 @@ class Just_WP_GCS_CLI {
 					continue;
 				}
 
+				if ( just_wp_gcs_should_skip_attachment( $attachment_id ) ) {
+					$skipped_count++;
+					continue;
+				}
+
 				$main_file = get_post_meta( $attachment_id, '_wp_attached_file', true );
 				if ( empty( $main_file ) ) {
 					continue;
@@ -161,6 +166,11 @@ class Just_WP_GCS_CLI {
 			foreach ( $chunk as $attachment_id ) {
 				$gcs_info = get_post_meta( $attachment_id, '_wp_gcs_info', true );
 				if ( ! empty( $gcs_info ) && ! $overwrite ) {
+					$skipped_count++;
+					continue;
+				}
+
+				if ( just_wp_gcs_should_skip_attachment( $attachment_id ) ) {
 					$skipped_count++;
 					continue;
 				}

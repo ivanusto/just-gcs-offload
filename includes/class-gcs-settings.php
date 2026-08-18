@@ -650,6 +650,12 @@ class Just_WP_GCS_Settings {
 				continue;
 			}
 
+			if ( just_wp_gcs_should_skip_attachment( $attachment_id ) ) {
+				/* translators: %d: Attachment ID. */
+				$logs[] = sprintf( __( 'ID %d: Excluded from offload, skipped.', 'just-gcs-offload' ), $attachment_id );
+				continue;
+			}
+
 			$main_file = get_post_meta( $attachment_id, '_wp_attached_file', true );
 			if ( empty( $main_file ) ) {
 				/* translators: %d: Attachment ID. */
