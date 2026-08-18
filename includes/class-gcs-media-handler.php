@@ -230,6 +230,11 @@ class Just_WP_GCS_Media_Handler {
 
 	/**
 	 * Short-circuit image downsizing to return GCS URL and size details.
+	 *
+	 * @param bool|array   $downsize      Short-circuit value from earlier filters.
+	 * @param int          $attachment_id Attachment post ID.
+	 * @param string|int[] $size          Registered size name, or array( width, height ).
+	 * @return array|false array( url, width, height, is_intermediate ), or false to defer to WordPress.
 	 */
 	public function gcs_image_downsize( $downsize, $attachment_id, $size ) {
 		$gcs_info = get_post_meta( $attachment_id, '_wp_gcs_info', true );
@@ -254,23 +259,42 @@ class Just_WP_GCS_Media_Handler {
 
 		if ( $size === 'full' ) {
 			$file_name = basename( $metadata['file'] );
-			$width     = isset( $metadata['width'] ) ? $metadata['width'] : 0;
-			$height    = isset( $metadata['height'] ) ? $metadata['height'] : 0;
-		} elseif ( is_string( $size ) && isset( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) && isset( $metadata['sizes'][ $size ] ) && is_array( $metadata['sizes'][ $size ] ) ) {
-			$size_data = $metadata['sizes'][ $size ];
-			$file_name       = isset( $size_data['file'] ) ? $size_data['file'] : '';
-			$width           = isset( $size_data['width'] ) ? $size_data['width'] : 0;
-			$height          = isset( $size_data['height'] ) ? $size_data['height'] : 0;
-			$is_intermediate = true;
+			$width     = isset( $metadata['width'] ) ? (int) $metadata['width'] : 0;
+			$height    = isset( $metadata['height'] ) ? (int) $metadata['height'] : 0;
 		} else {
-			// Fallback: If it's a width/height array or unregistered size
-			if ( is_array( $size ) && isset( $size[0] ) && isset( $size[1] ) ) {
-				$file_name = basename( $metadata['file'] );
-				$width     = $size[0];
-				$height    = $size[1];
-			} else {
+			/*
+			 * Let core resolve the requested size. This covers registered size
+			 * names and array( width, height ) requests, for which it picks the
+			 * smallest sub-size that is large enough and matches the aspect ratio,
+			 * and constrains the reported dimensions to the requested box. It
+			 * reads metadata only and never calls image_downsize(), so it cannot
+			 * recurse back into this filter.
+			 */
+			$intermediate = image_get_intermediate_size( $attachment_id, $size );
+
+			if ( ! is_array( $intermediate ) || empty( $intermediate['file'] ) ) {
+				/*
+				 * No sub-size matched, e.g. sub-sizes were never generated.
+				 * Returning false hands control back to image_downsize(), which
+				 * falls back to the original via wp_get_attachment_url() - already
+				 * rewritten to GCS by gcs_get_attachment_url() - and applies
+				 * image_constrain_size_for_editor() to the reported dimensions.
+				 */
 				return false;
 			}
+
+			/*
+			 * 'file' is a bare basename sitting next to $metadata['file'], the same
+			 * relationship image_downsize() assumes when it swaps the basename of
+			 * the full-size URL. $intermediate['path'] is deliberately not used: it
+			 * is uploads-relative rather than absolute, is missing when
+			 * $metadata['file'] is empty, and gains a './' prefix on flat upload
+			 * structures.
+			 */
+			$file_name       = $intermediate['file'];
+			$width           = isset( $intermediate['width'] ) ? (int) $intermediate['width'] : 0;
+			$height          = isset( $intermediate['height'] ) ? (int) $intermediate['height'] : 0;
+			$is_intermediate = true;
 		}
 
 		if ( empty( $file_name ) ) {
@@ -279,6 +303,10 @@ class Just_WP_GCS_Media_Handler {
 
 		$relative_path = $relative_dir ? $relative_dir . '/' . $file_name : $file_name;
 		$url           = $this->get_gcs_url( $gcs_info, $relative_path );
+
+		if ( empty( $url ) ) {
+			return false;
+		}
 
 		return array( $url, $width, $height, $is_intermediate );
 	}
