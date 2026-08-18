@@ -38,7 +38,7 @@ jobs:
           ZIP_NAME="${REPO_NAME}-${TAG_VER}.zip"
           STAGE_ROOT="$(mktemp -d)"
           mkdir -p "${STAGE_ROOT}/${REPO_NAME}"
-          rsync -a ./ "${STAGE_ROOT}/${REPO_NAME}/" --exclude-from=.distignore
+          rsync -a ./ "${STAGE_ROOT}/${REPO_NAME}/" --exclude='.git' --exclude='.github' --exclude='.gitignore' --exclude='node_modules' --exclude='.DS_Store' --exclude='claude-memory' --exclude='.claude' --exclude='*.bak' --exclude='*.zip'
           (cd "${STAGE_ROOT}" && zip -r "${GITHUB_WORKSPACE}/${ZIP_NAME}" "${REPO_NAME}")
           echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_ENV
 
