@@ -4,9 +4,9 @@ Tags: google cloud storage, gcs, offload, media library, cdn
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.3.0
-License: MIT
-License URI: https://opensource.org/licenses/MIT
+Stable tag: 1.4.0
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 A lightweight, dependency-free plugin that offloads the WordPress Media Library to a Google Cloud Storage bucket.
 
@@ -45,6 +45,12 @@ No. The plugin implements a minimal GCS REST client in pure PHP with no external
 Either enable Uniform bucket-level access and grant the Storage Object Viewer role to `allUsers` (recommended), or use Fine-grained access control and enable the "Set Public ACL" option in the plugin settings.
 
 == Changelog ==
+
+= 1.4.0 =
+* Fixed: requests for a size given as `array( width, height )` always returned the full-size original while reporting the requested dimensions as if they were real. Size resolution is now delegated to WordPress core, so the correct sub-size is served. This was most visible on the site icon, where all four `<head>` icon links pointed at the full-size image.
+* New: the site icon is no longer offloaded. Its URLs are printed into the document head on every page load, so it now always stays on the local site rather than depending on the bucket or CDN being reachable.
+* New: `just_wp_gcs_skip_attachment` filter to exclude arbitrary attachments from offload. Honored by the media handler, the WP-CLI commands and the bulk sync tools.
+* Note: existing installs keep serving an already-offloaded site icon from GCS. To move it back, clear its offload marker with `wp post meta delete <id> _wp_gcs_info`, or simply set the site icon again.
 
 = 1.3.0 =
 * New: on-demand rehydration. When a local file is missing but the attachment is offloaded (e.g. after enabling "Delete Local Files"), the plugin automatically downloads it back from GCS the moment WordPress needs the local path — so the built-in image editor and thumbnail regeneration keep working. Downloads only trigger in admin and WP-CLI contexts, never on the front end.
