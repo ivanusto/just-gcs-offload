@@ -294,7 +294,10 @@ class Just_WP_GCS_Media_Handler {
 		if ( strpos( $url, $baseurl ) === 0 ) {
 			$relative_path = substr( $url, strlen( $baseurl ) );
 			$relative_path = ltrim( $relative_path, '/' );
-			return $this->get_gcs_url( $gcs_info, $relative_path );
+			$gcs_url       = $this->get_gcs_url( $gcs_info, $relative_path );
+			if ( ! empty( $gcs_url ) ) {
+				return $gcs_url;
+			}
 		}
 
 		return $url;
@@ -406,7 +409,10 @@ class Just_WP_GCS_Media_Handler {
 			if ( strpos( $source_url, $baseurl ) === 0 ) {
 				$relative_path = substr( $source_url, strlen( $baseurl ) );
 				$relative_path = ltrim( $relative_path, '/' );
-				$sources[ $width ]['url'] = $this->get_gcs_url( $gcs_info, $relative_path );
+				$gcs_url       = $this->get_gcs_url( $gcs_info, $relative_path );
+				if ( ! empty( $gcs_url ) ) {
+					$sources[ $width ]['url'] = $gcs_url;
+				}
 			}
 		}
 
@@ -487,21 +493,50 @@ class Just_WP_GCS_Media_Handler {
 
 	/**
 	 * Generate fully-qualified GCS or CDN URL.
+	 *
+	 * Returns an empty string when there is no object to point at, so callers
+	 * keep the local URL. This matters beyond correctness: a URL of
+	 * https://storage.googleapis.com/{bucket}/ addresses the bucket rather than
+	 * an object, and GCS accounts for that as a ListObjects request. An
+	 * attachment carrying GCS metadata but no file path would otherwise make
+	 * every page view issue one.
+	 *
+	 * @param array  $gcs_info      Stored GCS metadata for the attachment.
+	 * @param string $relative_path Uploads-relative path of the file.
+	 * @return string Fully-qualified URL, or an empty string when none applies.
 	 */
 	private function get_gcs_url( $gcs_info, $relative_path ) {
 		if ( ! is_array( $gcs_info ) ) {
 			return '';
 		}
+
+		$relative_path = ltrim( (string) $relative_path, '/' );
+		if ( '' === $relative_path ) {
+			return '';
+		}
+
 		$custom_domain = get_option( 'just_wp_gcs_custom_domain' );
 		$prefix        = isset( $gcs_info['prefix'] ) ? $gcs_info['prefix'] : '';
 		$bucket        = isset( $gcs_info['bucket'] ) ? $gcs_info['bucket'] : '';
 
 		$gcs_key = $this->build_gcs_key( $prefix, $relative_path );
+		if ( '' === $gcs_key ) {
+			return '';
+		}
+
+		// Encode each segment separately so directory separators survive while
+		// characters that would otherwise terminate or reshape the path, such as
+		// '#', '?' and '%', are escaped.
+		$encoded_key = implode( '/', array_map( 'rawurlencode', explode( '/', $gcs_key ) ) );
 
 		if ( ! empty( $custom_domain ) ) {
-			return rtrim( $custom_domain, '/' ) . '/' . $gcs_key;
-		} else {
-			return 'https://storage.googleapis.com/' . $bucket . '/' . $gcs_key;
+			return rtrim( $custom_domain, '/' ) . '/' . $encoded_key;
 		}
+
+		if ( empty( $bucket ) ) {
+			return '';
+		}
+
+		return 'https://storage.googleapis.com/' . $bucket . '/' . $encoded_key;
 	}
 }
