@@ -55,9 +55,22 @@ Navigate to **Settings -> GCS Offload** in your WordPress dashboard to configure
 * **Custom Domain / CDN URL**: (Optional) Custom domain or CDN mapping (e.g., `https://cdn.example.com`). If empty, the default GCS URL will be used: `https://storage.googleapis.com/{bucket}`.
 * **Cache-Control Header**: The Cache-Control header applied to uploaded objects (defaults to `public, max-age=31536000`).
 * **Set Public ACL**: Check this if using Fine-grained access control on your bucket.
-* **Delete Local Files**: Check this to delete local copies of files after uploading them to GCS. *Note: Deleting local files may prevent the built-in WordPress image editor (crop/rotate) from working.*
+* **Delete Local Files**: Check this to delete local copies of files after uploading them to GCS. When a local file is needed again, the plugin downloads it back from GCS on demand, so the built-in image editor (crop/rotate) keeps working. Note that the Bulk Upload tool and `wp gcs-offload sync-all --delete-local` each carry their own delete-local switch, independent of this setting.
 
 Click **Run Connection Test** to verify that your credentials and permissions are configured correctly.
+
+## Filters
+
+* `just_wp_gcs_skip_attachment( bool $skip, int $attachment_id )` - exclude an attachment from being offloaded. The site icon is skipped by default.
+* `just_wp_gcs_rehydrate( bool $allow, int $attachment_id )` - allow a missing local file to be downloaded back from GCS for the current request.
+
+  Rehydration is deliberately restricted, because `get_attached_file` also fires on read-only paths. `wp_prepare_attachment_for_js()` in particular runs once per attachment whenever the Media Library grid or the block editor media picker loads a page of results, so downloading there would turn one screen into dozens of full-size bucket requests. By default only WP-CLI and the built-in image editor are allowed. Tools that genuinely need the local original can opt in:
+
+  ```php
+  add_filter( 'just_wp_gcs_rehydrate', function ( $allow ) {
+      return defined( 'MY_REGENERATING_THUMBNAILS' ) ? true : $allow;
+  } );
+  ```
 
 ## WP-CLI Commands
 

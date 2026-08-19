@@ -4,7 +4,7 @@ Tags: google cloud storage, gcs, offload, media library, cdn
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.4.0
+Stable tag: 1.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -45,6 +45,13 @@ No. The plugin implements a minimal GCS REST client in pure PHP with no external
 Either enable Uniform bucket-level access and grant the Storage Object Viewer role to `allUsers` (recommended), or use Fine-grained access control and enable the "Set Public ACL" option in the plugin settings.
 
 == Changelog ==
+
+= 1.4.1 =
+* Fixed: opening the Media Library could issue one full-size GCS download per attachment on screens that only needed to list files. `get_attached_file` fires on read-only paths too, including `wp_prepare_attachment_for_js()`, which core runs once per attachment for the grid view, the block editor media picker and similar browsers. On a site with "Delete Local Files" enabled, a single page of results turned into dozens of bucket downloads. Rehydration now defaults to off and only runs for WP-CLI and the built-in image editor.
+* New: `just_wp_gcs_rehydrate` filter, so tools that genuinely need the local original (thumbnail regenerators, for example) can opt back in.
+* Fixed: a failed rehydration is now remembered for an hour instead of being retried on every request, so an object that is missing from the bucket no longer generates repeated 404s.
+* Fixed: an attachment carrying GCS metadata but no file path produced a URL of `https://storage.googleapis.com/{bucket}/`, which addresses the bucket rather than an object and is accounted for by GCS as a ListObjects request. Such attachments now fall back to their local URL.
+* Fixed: object keys are percent-encoded per path segment, so file names containing `#`, `?` or `%` produce a working URL. Sites using a CDN will see a one-off wave of cache misses for any affected file names.
 
 = 1.4.0 =
 * Fixed: requests for a size given as `array( width, height )` always returned the full-size original while reporting the requested dimensions as if they were real. Size resolution is now delegated to WordPress core, so the correct sub-size is served. This was most visible on the site icon, where all four `<head>` icon links pointed at the full-size image.
