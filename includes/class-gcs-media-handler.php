@@ -152,6 +152,10 @@ class Just_WP_GCS_Media_Handler {
 			);
 			update_post_meta( $attachment_id, '_wp_gcs_info', $gcs_info );
 
+			// The object is in the bucket again, so a previously failed
+			// rehydration attempt must no longer be suppressed.
+			delete_transient( $this->rehydrate_failure_key( $attachment_id ) );
+
 			// Check delete local config
 			$delete_local = get_option( 'just_wp_gcs_delete_local', '0' );
 			if ( $delete_local === '1' ) {
@@ -166,10 +170,50 @@ class Just_WP_GCS_Media_Handler {
 	}
 
 	/**
+	 * Determine whether a missing local file may be fetched back from GCS.
+	 *
+	 * `get_attached_file` also fires on read-only paths, most importantly
+	 * wp_prepare_attachment_for_js(), which core runs once per attachment
+	 * whenever the Media Library grid, the block editor media picker, or any
+	 * similar browser loads a page of results. Rehydrating there turns a single
+	 * screen into dozens of full-size bucket downloads, so the default is to
+	 * refuse and allow only the requests that genuinely need bytes on disk.
+	 *
+	 * @since 1.4.1
+	 *
+	 * @param int $attachment_id Attachment post ID.
+	 * @return bool True when rehydration is allowed for the current request.
+	 */
+	private function should_rehydrate( $attachment_id ) {
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			$allow = true;
+		} else {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Only reads the action name to identify the context; core authorises the request itself.
+			$action = isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : '';
+			$allow  = in_array( $action, array( 'image-editor', 'imgedit-preview', 'crop-image' ), true );
+		}
+
+		/**
+		 * Filters whether a missing local file may be downloaded back from GCS.
+		 *
+		 * Tools that legitimately need the local original, such as thumbnail
+		 * regenerators, can opt in through this filter.
+		 *
+		 * @since 1.4.1
+		 *
+		 * @param bool $allow         Whether rehydration is allowed.
+		 * @param int  $attachment_id Attachment post ID.
+		 */
+		return (bool) apply_filters( 'just_wp_gcs_rehydrate', $allow, $attachment_id );
+	}
+
+	/**
 	 * Download the attached file back from GCS when the local copy is missing.
 	 *
-	 * Only runs in admin and WP-CLI contexts, so front-end requests never trigger
-	 * bucket downloads. Each attachment is attempted at most once per request.
+	 * Runs only in the contexts allowed by should_rehydrate(), so browsing the
+	 * Media Library never triggers bucket downloads. Each attachment is
+	 * attempted at most once per request, and a failed attempt is remembered for
+	 * an hour so a missing object is not re-requested on every page load.
 	 *
 	 * @param string $file          Local file path.
 	 * @param int    $attachment_id Attachment post ID.
@@ -178,11 +222,16 @@ class Just_WP_GCS_Media_Handler {
 	public function maybe_rehydrate_local_file( $file, $attachment_id ) {
 		static $attempted = array();
 
-		if ( empty( $file ) || file_exists( $file ) || isset( $attempted[ $attachment_id ] ) ) {
+		if ( empty( $file ) || isset( $attempted[ $attachment_id ] ) || file_exists( $file ) ) {
 			return $file;
 		}
 
-		if ( ! is_admin() && ! ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+		if ( ! $this->should_rehydrate( $attachment_id ) ) {
+			return $file;
+		}
+
+		$failure_key = $this->rehydrate_failure_key( $attachment_id );
+		if ( get_transient( $failure_key ) ) {
 			return $file;
 		}
 
@@ -201,11 +250,29 @@ class Just_WP_GCS_Media_Handler {
 		$prefix = isset( $gcs_info['prefix'] ) ? $gcs_info['prefix'] : '';
 		$result = $this->client->download_file( $this->build_gcs_key( $prefix, $relative_path ), $file );
 
-		if ( is_wp_error( $result ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			error_log( sprintf( 'Just GCS Offload: Rehydrate failed for attachment %d: %s', $attachment_id, $result->get_error_message() ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Only logs when WP_DEBUG is enabled.
+		if ( is_wp_error( $result ) ) {
+			// Remember the failure so an object that is missing from the bucket
+			// is not requested again on every subsequent request.
+			set_transient( $failure_key, 1, HOUR_IN_SECONDS );
+
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( sprintf( 'Just GCS Offload: Rehydrate failed for attachment %d: %s', $attachment_id, $result->get_error_message() ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Only logs when WP_DEBUG is enabled.
+			}
 		}
 
 		return $file;
+	}
+
+	/**
+	 * Transient key holding the last failed rehydration attempt.
+	 *
+	 * @since 1.4.1
+	 *
+	 * @param int $attachment_id Attachment post ID.
+	 * @return string Transient key.
+	 */
+	private function rehydrate_failure_key( $attachment_id ) {
+		return 'just_wp_gcs_nodl_' . (int) $attachment_id;
 	}
 
 	/**
