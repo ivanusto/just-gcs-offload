@@ -474,13 +474,23 @@ class Just_WP_GCS_Media_Handler {
 		}
 
 		$metadata = wp_get_attachment_metadata( $attachment_id );
-		if ( ! $metadata || ! is_array( $metadata ) ) {
+		$metadata = is_array( $metadata ) ? $metadata : array();
+
+		/*
+		 * Resolve the main file the same way the upload side does. Only images
+		 * carry a 'file' key in their metadata: wp_read_video_metadata() and
+		 * wp_read_audio_metadata() return duration, codec and dimensions but no
+		 * path, so a video or audio attachment would otherwise resolve to no
+		 * files at all and leave its object behind in the bucket.
+		 */
+		$main_file = ! empty( $metadata['file'] ) ? $metadata['file'] : get_post_meta( $attachment_id, '_wp_attached_file', true );
+		if ( empty( $main_file ) ) {
 			return;
 		}
 
 		$prefix = isset( $gcs_info['prefix'] ) ? $gcs_info['prefix'] : '';
 
-		foreach ( just_wp_gcs_collect_attachment_files( $metadata ) as $relative_path ) {
+		foreach ( just_wp_gcs_collect_attachment_files( $metadata, $main_file ) as $relative_path ) {
 			$this->client->delete_file( $this->build_gcs_key( $prefix, $relative_path ) );
 		}
 	}
