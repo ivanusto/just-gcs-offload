@@ -3,7 +3,7 @@
  * Plugin Name: Just GCS Offload
  * Plugin URI:  https://yblog.org
  * Description: A lightweight, dependency-free plugin to offload WordPress Media Library to Google Cloud Storage (GCS) using Service Account JWT authentication.
- * Version:     1.4.1
+ * Version:     1.5.0
  * Author:      Ivan Lin
  * Author URI:  https://yblog.org
  * License: GPLv2 or later
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define Constants
-define( 'JUST_WP_GCS_VERSION', '1.4.1' );
+define( 'JUST_WP_GCS_VERSION', '1.5.0' );
 define( 'JUST_WP_GCS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'JUST_WP_GCS_URL', plugin_dir_url( __FILE__ ) );
 

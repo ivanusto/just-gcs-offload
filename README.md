@@ -62,6 +62,7 @@ Click **Run Connection Test** to verify that your credentials and permissions ar
 ## Filters
 
 * `just_wp_gcs_skip_attachment( bool $skip, int $attachment_id )` - exclude an attachment from being offloaded. The site icon is skipped by default.
+* `just_wp_gcs_companion_meta_keys( string[] $keys )` - the attachment metadata keys treated as companion files sitting next to the main file. Defaults to `original_image`, `source_image`, `animated_video` and `animated_video_poster`.
 * `just_wp_gcs_rehydrate( bool $allow, int $attachment_id )` - allow a missing local file to be downloaded back from GCS for the current request.
 
   Rehydration is deliberately restricted, because `get_attached_file` also fires on read-only paths. `wp_prepare_attachment_for_js()` in particular runs once per attachment whenever the Media Library grid or the block editor media picker loads a page of results, so downloading there would turn one screen into dozens of full-size bucket requests. By default only WP-CLI and the built-in image editor are allowed. Tools that genuinely need the local original can opt in:

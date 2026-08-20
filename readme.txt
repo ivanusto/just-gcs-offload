@@ -2,9 +2,9 @@
 Contributors: ivanusto
 Tags: google cloud storage, gcs, offload, media library, cdn
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.4.1
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -45,6 +45,15 @@ No. The plugin implements a minimal GCS REST client in pure PHP with no external
 Either enable Uniform bucket-level access and grant the Storage Object Viewer role to `allUsers` (recommended), or use Fine-grained access control and enable the "Set Public ACL" option in the plugin settings.
 
 == Changelog ==
+
+= 1.5.0 =
+* Fixed: uploading a single image issued far more GCS requests than it had files. WordPress saves the attachment metadata once per generated sub-size, and the plugin re-uploaded every file already on disk each time, so the request count grew with the square of the sub-size count - a stock install measured 35 uploads for 7 files, with the full-size original sent 8 times. Offloading now happens once per request, at the end, and each file is uploaded exactly once.
+* Fixed: with "Delete Local Files" enabled, the original was uploaded and deleted on the first metadata save, which happens *before* WordPress generates the sub-sizes. Sub-size generation then had no source image and silently produced nothing, leaving attachments with no thumbnails at all - every size fell back to the full-size original. Local files are now removed only after sub-size generation has finished.
+* New: WordPress 7.1 companion files are offloaded and deleted alongside the attachment - `source_image` (the HEIC kept next to its JPEG derivative) and `animated_video` / `animated_video_poster` (the MP4/WebM an animated GIF is converted to in the browser, and its poster frame).
+* Fixed: a sub-size file registered under several size names is uploaded and deleted once instead of once per name. WordPress 7.1 deduplicates sizes that share dimensions, so this is now common.
+* New: `just_wp_gcs_companion_meta_keys` filter over the attachment metadata keys treated as companion files.
+* Changed: `upload_attachment_files()` is replaced by `queue_attachment_offload()` and `offload_attachment()`. The `_wp_gcs_processing` post meta flag is no longer used; existing rows are harmless leftovers.
+* Tested against WordPress 7.1-RC4, including the client-side media processing upload flow (`POST /wp/v2/media/{id}/sideload` and `/finalize`).
 
 = 1.4.1 =
 * Fixed: opening the Media Library could issue one full-size GCS download per attachment on screens that only needed to list files. `get_attached_file` fires on read-only paths too, including `wp_prepare_attachment_for_js()`, which core runs once per attachment for the grid view, the block editor media picker and similar browsers. On a site with "Delete Local Files" enabled, a single page of results turned into dozens of bucket downloads. Rehydration now defaults to off and only runs for WP-CLI and the built-in image editor.
