@@ -3,7 +3,7 @@
  * Plugin Name: Just GCS Offload
  * Plugin URI:  https://yblog.org
  * Description: A lightweight, dependency-free plugin to offload WordPress Media Library to Google Cloud Storage (GCS) using Service Account JWT authentication.
- * Version:     1.5.0
+ * Version:     1.5.1
  * Author:      Ivan Lin
  * Author URI:  https://yblog.org
  * License: GPLv2 or later
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define Constants
-define( 'JUST_WP_GCS_VERSION', '1.5.0' );
+define( 'JUST_WP_GCS_VERSION', '1.5.1' );
 define( 'JUST_WP_GCS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'JUST_WP_GCS_URL', plugin_dir_url( __FILE__ ) );
 
@@ -102,10 +102,41 @@ function just_wp_gcs_companion_meta_keys() {
 }
 
 /**
+ * File names recorded in a Modern Image Formats `sources` array.
+ *
+ * The WordPress Performance team's webp-uploads module stores one file per
+ * output MIME type under `sources`, both on the attachment metadata and on each
+ * sub-size. Where it applies, the converted WebP (or AVIF) exists only there:
+ * reading `file` alone finds the original and misses every derivative, so they
+ * would never reach the bucket and the `<picture>` sources on the front end
+ * would point at objects that do not exist.
+ *
+ * @since 1.5.1
+ *
+ * @param mixed $sources A `sources` value from attachment or sub-size metadata.
+ * @return string[] Bare file names, in the order they appear.
+ */
+function just_wp_gcs_source_files( $sources ) {
+	if ( ! is_array( $sources ) ) {
+		return array();
+	}
+
+	$files = array();
+
+	foreach ( $sources as $source ) {
+		if ( is_array( $source ) && ! empty( $source['file'] ) && is_string( $source['file'] ) ) {
+			$files[] = $source['file'];
+		}
+	}
+
+	return $files;
+}
+
+/**
  * Collect every uploads-relative file path belonging to an attachment.
  *
- * Returns the main file, its companion files, and every sub-size, in that
- * order. Paths are deduplicated: since WordPress 7.1 one physical file can be
+ * Returns the main file, its companion files, every Modern Image Formats
+ * derivative, and every sub-size with its own derivatives. Paths are deduplicated: since WordPress 7.1 one physical file can be
  * registered under several size names when those sizes share dimensions, and
  * uploading or deleting it once per name would multiply the GCS API calls for
  * no benefit.
@@ -143,12 +174,23 @@ function just_wp_gcs_collect_attachment_files( $metadata, $main_file = '' ) {
 		$paths[] = $relative_dir ? $relative_dir . '/' . $metadata[ $key ] : $metadata[ $key ];
 	}
 
+	foreach ( just_wp_gcs_source_files( isset( $metadata['sources'] ) ? $metadata['sources'] : null ) as $source_file ) {
+		$paths[] = $relative_dir ? $relative_dir . '/' . $source_file : $source_file;
+	}
+
 	if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
 		foreach ( $metadata['sizes'] as $size_info ) {
-			if ( ! is_array( $size_info ) || empty( $size_info['file'] ) || ! is_string( $size_info['file'] ) ) {
+			if ( ! is_array( $size_info ) ) {
 				continue;
 			}
-			$paths[] = $relative_dir ? $relative_dir . '/' . $size_info['file'] : $size_info['file'];
+
+			if ( ! empty( $size_info['file'] ) && is_string( $size_info['file'] ) ) {
+				$paths[] = $relative_dir ? $relative_dir . '/' . $size_info['file'] : $size_info['file'];
+			}
+
+			foreach ( just_wp_gcs_source_files( isset( $size_info['sources'] ) ? $size_info['sources'] : null ) as $source_file ) {
+				$paths[] = $relative_dir ? $relative_dir . '/' . $source_file : $source_file;
+			}
 		}
 	}
 
