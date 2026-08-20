@@ -53,7 +53,7 @@ Either enable Uniform bucket-level access and grant the Storage Object Viewer ro
 * Fixed: a sub-size file registered under several size names is uploaded and deleted once instead of once per name. WordPress 7.1 deduplicates sizes that share dimensions, so this is now common.
 * New: `just_wp_gcs_companion_meta_keys` filter over the attachment metadata keys treated as companion files.
 * Changed: `upload_attachment_files()` is replaced by `queue_attachment_offload()` and `offload_attachment()`. The `_wp_gcs_processing` post meta flag is no longer used; existing rows are harmless leftovers.
-* Tested against WordPress 7.1-RC4, including the client-side media processing upload flow (`POST /wp/v2/media/{id}/sideload` and `/finalize`).
+* Tested against WordPress 7.1, including the client-side media processing upload flow (`POST /wp/v2/media/{id}/sideload` and `/finalize`) and the `source_image`, `animated_video` and `animated_video_poster` companion files it introduces.
 
 = 1.4.1 =
 * Fixed: opening the Media Library could issue one full-size GCS download per attachment on screens that only needed to list files. `get_attached_file` fires on read-only paths too, including `wp_prepare_attachment_for_js()`, which core runs once per attachment for the grid view, the block editor media picker and similar browsers. On a site with "Delete Local Files" enabled, a single page of results turned into dozens of bucket downloads. Rehydration now defaults to off and only runs for WP-CLI and the built-in image editor.
