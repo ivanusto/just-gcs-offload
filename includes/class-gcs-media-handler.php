@@ -73,57 +73,25 @@ class Just_WP_GCS_Media_Handler {
 			return $metadata;
 		}
 
-		$local_main_file = $basedir . '/' . $main_file;
-		$relative_dir    = dirname( $main_file );
-		if ( $relative_dir === '.' ) {
-			$relative_dir = '';
-		}
-
+		// Queue the main file, its companion files and every sub-size that is
+		// actually present on disk. Client-side media processing writes metadata
+		// in two passes, so this runs once before the sub-sizes exist and again
+		// once they do; files already uploaded and removed locally simply fall
+		// out of the queue on the second pass.
 		$files_to_upload = array();
-		
-		// 1. Add main file to upload queue
-		if ( file_exists( $local_main_file ) ) {
-			$gcs_main_key = $this->build_gcs_key( $prefix, $main_file );
+
+		foreach ( just_wp_gcs_collect_attachment_files( $metadata, $main_file ) as $relative_path ) {
+			$local_path = $basedir . '/' . $relative_path;
+			if ( ! file_exists( $local_path ) ) {
+				continue;
+			}
 			$files_to_upload[] = array(
-				'local_path' => $local_main_file,
-				'gcs_key'    => $gcs_main_key,
+				'local_path' => $local_path,
+				'gcs_key'    => $this->build_gcs_key( $prefix, $relative_path ),
 			);
 		}
 
-		// 2. Add the pre-conversion/pre-scaled original image (e.g. the JPEG source of a
-		// WebP conversion) so wp_get_original_image_url() also resolves on GCS
-		if ( ! empty( $metadata['original_image'] ) ) {
-			$relative_original_path = $relative_dir ? $relative_dir . '/' . $metadata['original_image'] : $metadata['original_image'];
-			$local_original_file    = $basedir . '/' . $relative_original_path;
-			if ( $relative_original_path !== $main_file && file_exists( $local_original_file ) ) {
-				$files_to_upload[] = array(
-					'local_path' => $local_original_file,
-					'gcs_key'    => $this->build_gcs_key( $prefix, $relative_original_path ),
-				);
-			}
-		}
-
-		// 3. Add all intermediate size files to upload queue
-		if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
-			foreach ( $metadata['sizes'] as $size => $size_info ) {
-				if ( empty( $size_info['file'] ) ) {
-					continue;
-				}
-				$size_file_name = $size_info['file'];
-				$relative_size_path = $relative_dir ? $relative_dir . '/' . $size_file_name : $size_file_name;
-				$local_size_file = $basedir . '/' . $relative_size_path;
-				
-				if ( file_exists( $local_size_file ) ) {
-					$gcs_size_key = $this->build_gcs_key( $prefix, $relative_size_path );
-					$files_to_upload[] = array(
-						'local_path' => $local_size_file,
-						'gcs_key'    => $gcs_size_key,
-					);
-				}
-			}
-		}
-
-		// 4. Perform uploads
+		// Perform uploads
 		$uploaded_successfully = array();
 		$failed_uploads        = array();
 
@@ -142,7 +110,7 @@ class Just_WP_GCS_Media_Handler {
 			}
 		}
 
-		// 5. Save metadata flag and delete local files if configured and everything succeeded
+		// Save metadata flag and delete local files if configured and everything succeeded
 		if ( count( $uploaded_successfully ) > 0 && count( $failed_uploads ) === 0 ) {
 			// Save sync metadata
 			$gcs_info = array(
@@ -435,38 +403,10 @@ class Just_WP_GCS_Media_Handler {
 			return;
 		}
 
-		$prefix       = isset( $gcs_info['prefix'] ) ? $gcs_info['prefix'] : '';
-		$main_file    = isset( $metadata['file'] ) ? $metadata['file'] : '';
-		$relative_dir = dirname( $main_file );
-		if ( $relative_dir === '.' ) {
-			$relative_dir = '';
-		}
+		$prefix = isset( $gcs_info['prefix'] ) ? $gcs_info['prefix'] : '';
 
-		// Delete original GCS key
-		if ( ! empty( $main_file ) ) {
-			$gcs_main_key = $this->build_gcs_key( $prefix, $main_file );
-			$this->client->delete_file( $gcs_main_key );
-		}
-
-		// Delete the pre-conversion original image key
-		if ( ! empty( $metadata['original_image'] ) ) {
-			$relative_original_path = $relative_dir ? $relative_dir . '/' . $metadata['original_image'] : $metadata['original_image'];
-			if ( $relative_original_path !== $main_file ) {
-				$this->client->delete_file( $this->build_gcs_key( $prefix, $relative_original_path ) );
-			}
-		}
-
-		// Delete sizes keys
-		if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
-			foreach ( $metadata['sizes'] as $size => $size_info ) {
-				if ( empty( $size_info['file'] ) ) {
-					continue;
-				}
-				$size_file_name = $size_info['file'];
-				$relative_size_path = $relative_dir ? $relative_dir . '/' . $size_file_name : $size_file_name;
-				$gcs_size_key = $this->build_gcs_key( $prefix, $relative_size_path );
-				$this->client->delete_file( $gcs_size_key );
-			}
+		foreach ( just_wp_gcs_collect_attachment_files( $metadata ) as $relative_path ) {
+			$this->client->delete_file( $this->build_gcs_key( $prefix, $relative_path ) );
 		}
 	}
 

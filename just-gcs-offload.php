@@ -69,6 +69,94 @@ function just_wp_gcs_should_skip_attachment( $attachment_id ) {
 	return (bool) apply_filters( 'just_wp_gcs_skip_attachment', $skip, $attachment_id );
 }
 
+/**
+ * Attachment metadata keys holding a companion file of the main attachment.
+ *
+ * Each key holds a bare basename that sits in the same directory as
+ * `$metadata['file']`:
+ *
+ * - `original_image` - the pre-conversion or pre-scaled source, e.g. the JPEG
+ *   behind a WebP derivative or the original of a scaled-down upload.
+ * - `source_image` - the source-format original kept by client-side media
+ *   processing, e.g. the HEIC behind its JPEG derivative. WordPress 7.1+.
+ * - `animated_video` and `animated_video_poster` - the MP4/WebM an animated GIF
+ *   is converted to in the browser, and its static first-frame poster.
+ *   WordPress 7.1+.
+ *
+ * @since 1.5.0
+ *
+ * @return string[] Metadata keys.
+ */
+function just_wp_gcs_companion_meta_keys() {
+	/**
+	 * Filters the attachment metadata keys treated as companion files.
+	 *
+	 * @since 1.5.0
+	 *
+	 * @param string[] $keys Metadata keys.
+	 */
+	return (array) apply_filters(
+		'just_wp_gcs_companion_meta_keys',
+		array( 'original_image', 'source_image', 'animated_video', 'animated_video_poster' )
+	);
+}
+
+/**
+ * Collect every uploads-relative file path belonging to an attachment.
+ *
+ * Returns the main file, its companion files, and every sub-size, in that
+ * order. Paths are deduplicated: since WordPress 7.1 one physical file can be
+ * registered under several size names when those sizes share dimensions, and
+ * uploading or deleting it once per name would multiply the GCS API calls for
+ * no benefit.
+ *
+ * @since 1.5.0
+ *
+ * @param array  $metadata  Attachment metadata.
+ * @param string $main_file Uploads-relative path of the main file. Falls back
+ *                          to `$metadata['file']`.
+ * @return string[] Uploads-relative paths, without duplicates. Empty when there
+ *                  is no main file to anchor the other paths to.
+ */
+function just_wp_gcs_collect_attachment_files( $metadata, $main_file = '' ) {
+	$metadata = is_array( $metadata ) ? $metadata : array();
+
+	if ( '' === $main_file && ! empty( $metadata['file'] ) ) {
+		$main_file = $metadata['file'];
+	}
+
+	if ( empty( $main_file ) || ! is_string( $main_file ) ) {
+		return array();
+	}
+
+	$relative_dir = dirname( $main_file );
+	if ( '.' === $relative_dir ) {
+		$relative_dir = '';
+	}
+
+	$paths = array( $main_file );
+
+	foreach ( just_wp_gcs_companion_meta_keys() as $key ) {
+		if ( empty( $metadata[ $key ] ) || ! is_string( $metadata[ $key ] ) ) {
+			continue;
+		}
+		$paths[] = $relative_dir ? $relative_dir . '/' . $metadata[ $key ] : $metadata[ $key ];
+	}
+
+	if ( ! empty( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ) {
+		foreach ( $metadata['sizes'] as $size_info ) {
+			if ( ! is_array( $size_info ) || empty( $size_info['file'] ) || ! is_string( $size_info['file'] ) ) {
+				continue;
+			}
+			$paths[] = $relative_dir ? $relative_dir . '/' . $size_info['file'] : $size_info['file'];
+		}
+	}
+
+	// array_unique keeps the first occurrence, so the main file wins over a
+	// companion key or sub-size that points at the same physical file.
+	return array_values( array_unique( $paths ) );
+}
+
 // Initialize Plugin
 function just_wp_gcs_init() {
 	// Initialize GCS Client with settings
