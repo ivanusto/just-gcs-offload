@@ -4,7 +4,7 @@ Tags: google cloud storage, gcs, offload, media library, cdn
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.5.0
+Stable tag: 1.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -45,6 +45,10 @@ No. The plugin implements a minimal GCS REST client in pure PHP with no external
 Either enable Uniform bucket-level access and grant the Storage Object Viewer role to `allUsers` (recommended), or use Fine-grained access control and enable the "Set Public ACL" option in the plugin settings.
 
 == Changelog ==
+
+= 1.5.1 =
+* Fixed: files recorded under `sources` were never offloaded. The WordPress Performance team's Modern Image Formats plugin (`webp-uploads`) stores one file per output format there - on the attachment metadata and on every sub-size - and the converted WebP or AVIF exists nowhere else. With that plugin configured to keep the original format alongside the modern one, a stock upload produced twelve files of which only seven reached the bucket; the five derivatives 404ed, so the `<picture>` sources on the front end pointed at objects that did not exist, and deleting the attachment left them behind.
+* Note: sites where the modern format replaces the original - the default, and the case where `_wp_attached_file` already points at the `.webp` - were unaffected, because the original is recorded as `original_image` and was already handled.
 
 = 1.5.0 =
 * Fixed: uploading a single image issued far more GCS requests than it had files. WordPress saves the attachment metadata once per generated sub-size, and the plugin re-uploaded every file already on disk each time, so the request count grew with the square of the sub-size count - a stock install measured 35 uploads for 7 files, with the full-size original sent 8 times. Offloading now happens once per request, at the end, and each file is uploaded exactly once.
