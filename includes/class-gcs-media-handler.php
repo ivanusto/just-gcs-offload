@@ -11,9 +11,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Just_WP_GCS_Media_Handler {
 
 	/**
+	 * Upper bound on attachments queued before the queue is flushed early.
+	 *
+	 * A single request can touch a very large number of attachments - a WP-CLI
+	 * import loop, for instance - and deferring all of them to the very end of
+	 * the run would be neither memory-friendly nor crash-safe.
+	 */
+	const QUEUE_FLUSH_THRESHOLD = 100;
+
+	/**
 	 * @var Just_WP_GCS_Client
 	 */
 	private $client;
+
+	/**
+	 * Attachment IDs queued for offload, keyed by ID.
+	 *
+	 * @var array<int,bool>
+	 */
+	private $queued = array();
 
 	/**
 	 * Constructor
@@ -21,8 +37,17 @@ class Just_WP_GCS_Media_Handler {
 	public function __construct( $client ) {
 		$this->client = $client;
 
-		// Hook into metadata generation to upload files to GCS
-		add_filter( 'wp_update_attachment_metadata', array( $this, 'upload_attachment_files' ), 10, 2 );
+		/*
+		 * Queue offloads rather than running them inline. WordPress saves the
+		 * attachment metadata once per generated sub-size (see
+		 * _wp_make_subsizes()), so uploading on every call re-uploads every file
+		 * already on disk and makes the number of GCS requests grow with the
+		 * square of the sub-size count. Running once at the end of the request
+		 * also means "delete local files" happens after sub-size generation has
+		 * finished, instead of removing the source image it still needs.
+		 */
+		add_filter( 'wp_update_attachment_metadata', array( $this, 'queue_attachment_offload' ), 10, 2 );
+		add_action( 'shutdown', array( $this, 'process_queued_offloads' ), 20 );
 
 		// Hook into URL retrieval filters to rewrite local URLs to GCS URLs
 		add_filter( 'wp_get_attachment_url', array( $this, 'gcs_get_attachment_url' ), 10, 2 );
@@ -38,46 +63,99 @@ class Just_WP_GCS_Media_Handler {
 	}
 
 	/**
-	 * Upload attachment original and sub-size files to GCS.
+	 * Queue an attachment to be offloaded at the end of the request.
+	 *
+	 * @since 1.5.0
 	 *
 	 * @param array $metadata      Attachment metadata.
 	 * @param int   $attachment_id Attachment post ID.
-	 * @return array Modified metadata.
+	 * @return array The metadata, unchanged.
 	 */
-	public function upload_attachment_files( $metadata, $attachment_id ) {
-		// Prevent double uploads or processing if already done
-		if ( get_post_meta( $attachment_id, '_wp_gcs_processing', true ) ) {
-			return $metadata;
+	public function queue_attachment_offload( $metadata, $attachment_id ) {
+		$attachment_id = (int) $attachment_id;
+
+		if ( $attachment_id > 0 ) {
+			$this->queued[ $attachment_id ] = true;
+
+			if ( count( $this->queued ) > self::QUEUE_FLUSH_THRESHOLD ) {
+				// Hold back the attachment currently being written: more of its
+				// sub-sizes are probably still to come, and offloading it now
+				// would upload a partial set.
+				unset( $this->queued[ $attachment_id ] );
+				$this->process_queued_offloads();
+				$this->queued[ $attachment_id ] = true;
+			}
+		}
+
+		return $metadata;
+	}
+
+	/**
+	 * Offload every attachment queued during this request.
+	 *
+	 * @since 1.5.0
+	 */
+	public function process_queued_offloads() {
+		if ( empty( $this->queued ) ) {
+			return;
+		}
+
+		$attachment_ids = array_keys( $this->queued );
+		$this->queued   = array();
+
+		foreach ( $attachment_ids as $attachment_id ) {
+			$this->offload_attachment( $attachment_id );
+		}
+	}
+
+	/**
+	 * Upload an attachment's original, companion and sub-size files to GCS.
+	 *
+	 * Reads the metadata fresh instead of trusting the array passed to the
+	 * metadata filter: by the time this runs the sub-sizes have been generated
+	 * and saved, so the stored metadata is the complete picture.
+	 *
+	 * @since 1.5.0 Replaces upload_attachment_files(), which ran on every
+	 *              metadata save.
+	 *
+	 * @param int $attachment_id Attachment post ID.
+	 */
+	public function offload_attachment( $attachment_id ) {
+		$attachment_id = (int) $attachment_id;
+
+		// The attachment may have been deleted after it was queued.
+		if ( 'attachment' !== get_post_type( $attachment_id ) ) {
+			return;
 		}
 
 		$bucket = get_option( 'just_wp_gcs_bucket' );
 		if ( empty( $bucket ) ) {
-			return $metadata;
+			return;
 		}
 
 		// Some attachments, such as the site icon, must remain on local storage.
 		if ( $this->should_skip_attachment( $attachment_id ) ) {
-			return $metadata;
+			return;
 		}
 
-		update_post_meta( $attachment_id, '_wp_gcs_processing', '1' );
+		$metadata = wp_get_attachment_metadata( $attachment_id );
+		$metadata = is_array( $metadata ) ? $metadata : array();
 
 		$prefix     = get_option( 'just_wp_gcs_prefix', '' );
 		$upload_dir = wp_upload_dir();
 		$basedir    = $upload_dir['basedir'];
 
 		// Retrieve the main file path
-		$main_file = isset( $metadata['file'] ) ? $metadata['file'] : get_post_meta( $attachment_id, '_wp_attached_file', true );
+		$main_file = ! empty( $metadata['file'] ) ? $metadata['file'] : get_post_meta( $attachment_id, '_wp_attached_file', true );
 		if ( empty( $main_file ) ) {
-			delete_post_meta( $attachment_id, '_wp_gcs_processing' );
-			return $metadata;
+			return;
 		}
 
-		// Queue the main file, its companion files and every sub-size that is
-		// actually present on disk. Client-side media processing writes metadata
-		// in two passes, so this runs once before the sub-sizes exist and again
-		// once they do; files already uploaded and removed locally simply fall
-		// out of the queue on the second pass.
+		// Collect the main file, its companion files and every sub-size that is
+		// actually present on disk. WordPress 7.1 client-side media processing
+		// writes metadata in two requests - the upload and the finalize call -
+		// so this runs once per request; files already uploaded and removed
+		// locally simply fall out of the list on the second pass.
 		$files_to_upload = array();
 
 		foreach ( just_wp_gcs_collect_attachment_files( $metadata, $main_file ) as $relative_path ) {
@@ -110,7 +188,7 @@ class Just_WP_GCS_Media_Handler {
 			}
 		}
 
-		// Save metadata flag and delete local files if configured and everything succeeded
+		// Save the offload marker and delete local files if configured and everything succeeded
 		if ( count( $uploaded_successfully ) > 0 && count( $failed_uploads ) === 0 ) {
 			// Save sync metadata
 			$gcs_info = array(
@@ -132,9 +210,6 @@ class Just_WP_GCS_Media_Handler {
 				}
 			}
 		}
-
-		delete_post_meta( $attachment_id, '_wp_gcs_processing' );
-		return $metadata;
 	}
 
 	/**
